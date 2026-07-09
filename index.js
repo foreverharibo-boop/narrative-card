@@ -1,6 +1,3 @@
-bash
-
-cat > /home/claude/index_new.js << 'ENDOFFILE'
 /**
  * 📜 Narrative Card - SillyTavern Extension
  * 사용자가 직접 드래그한 텍스트를 발췌해 카드 이미지로 만듭니다.
