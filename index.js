@@ -1,7 +1,6 @@
 /**
  * 📜 Narrative Card - SillyTavern Extension
- * 채팅 출력에서 핵심 서술+대사를 AI로 추출해 텍스트 카드 이미지로 만듭니다.
- * (Polaroid 확장의 API 호출/설정 패턴을 재사용)
+ * 사용자가 직접 드래그한 텍스트를 발췌해 카드 이미지로 만듭니다.
  */
 
 import { getContext, extension_settings } from '../../../extensions.js';
@@ -13,6 +12,33 @@ function injectStyles() {
     const style = document.createElement('style');
     style.id = 'ncard-injected-css';
     style.textContent = `
+/* ── 드래그 선택 + 버튼 ─────────────────────────────────── */
+.ncard-add-btn {
+    position: fixed !important;
+    z-index: 2147483646 !important;
+    background: #d4a017;
+    color: #1c1a17;
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+    font-weight: bold;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.45);
+    transition: transform .15s, background .15s;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.ncard-add-btn:hover,
+.ncard-add-btn:active { background: #e0bb30; transform: scale(1.12); }
+
+/* ── 메시지 버튼 ─────────────────────────────────────────── */
 .ncard-msg-btn {
     cursor: pointer;
     opacity: 0.55;
@@ -29,6 +55,174 @@ function injectStyles() {
 }
 .ncard-msg-btn:hover { opacity: 1; color: #d4a017 !important; }
 
+/* ── 발췌 팝업 ───────────────────────────────────────────── */
+/*
+ * 모바일 정중앙 고정을 위해 position:fixed + inset:0 + flex centering을
+ * 모두 !important로 중복 선언합니다.
+ * SillyTavern 내부 z-index 및 transform 충돌을 방지하기 위해
+ * 최고 z-index(2147483647)를 사용합니다.
+ */
+.ncard-popup-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-width: 100vw !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+    background: rgba(0,0,0,0.72) !important;
+    z-index: 2147483647 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+}
+.ncard-popup {
+    position: relative !important;
+    /* 절대 위치 지정 — 부모가 flex centering이므로 이것이 정중앙에 옵니다 */
+    margin: auto !important;
+    background: #1e1c19;
+    border-radius: 16px;
+    width: min(92vw, 420px) !important;
+    max-height: 82vh !important;
+    max-height: 82dvh !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    transform: none !important;
+    -webkit-transform: none !important;
+}
+.ncard-popup-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    flex-shrink: 0;
+}
+.ncard-popup-title {
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.ncard-popup-close {
+    cursor: pointer;
+    opacity: 0.6;
+    font-size: 20px;
+    color: #fff;
+    line-height: 1;
+    padding: 4px;
+    touch-action: manipulation;
+}
+.ncard-popup-close:hover { opacity: 1; }
+
+.ncard-popup-body {
+    overflow-y: auto;
+    padding: 14px 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.ncard-excerpt-item {
+    background: rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    position: relative;
+}
+.ncard-excerpt-text {
+    flex: 1;
+    color: #ddd;
+    font-size: 13px;
+    line-height: 1.6;
+    word-break: break-all;
+}
+.ncard-excerpt-del {
+    flex-shrink: 0;
+    cursor: pointer;
+    opacity: 0.45;
+    color: #ff7070;
+    font-size: 16px;
+    touch-action: manipulation;
+    padding: 2px 4px;
+}
+.ncard-excerpt-del:hover { opacity: 1; }
+.ncard-excerpt-empty {
+    color: rgba(255,255,255,0.3);
+    font-size: 13px;
+    text-align: center;
+    padding: 24px 0;
+}
+
+/* 타입 선택 라디오 */
+.ncard-type-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+.ncard-type-btn {
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: transparent;
+    color: #aaa;
+    font-size: 11px;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background .15s, color .15s;
+}
+.ncard-type-btn.active {
+    background: #d4a017;
+    color: #1c1a17;
+    border-color: #d4a017;
+    font-weight: 600;
+}
+
+.ncard-popup-foot {
+    padding: 12px 16px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.ncard-popup-foot button {
+    flex: 1;
+    padding: 10px 0;
+    border-radius: 10px;
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.ncard-btn-clear {
+    background: rgba(255,255,255,0.08);
+    color: #ccc;
+}
+.ncard-btn-gen {
+    background: #d4a017;
+    color: #1c1a17;
+}
+.ncard-btn-gen:hover { background: #e0bb30; }
+.ncard-btn-gen:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── 카드 인라인 표시 ─────────────────────────────────────── */
 .ncard-wrap {
     display: flex;
     justify-content: center;
@@ -56,19 +250,38 @@ function injectStyles() {
     opacity: .8;
     margin-bottom: 3px;
 }
+.ncard-font-size-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.ncard-font-size-row input[type=range] { flex: 1; }
+.ncard-font-size-val {
+    min-width: 32px;
+    font-size: 12px;
+    text-align: right;
+    opacity: .8;
+}
 
-/* ── 모달(갤러리) ──────────────────────────────────────── */
+/* ── 갤러리 모달 ──────────────────────────────────────── */
 .ncard-modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,.7);
-    z-index: 99998;
-    display: flex; align-items: center; justify-content: center;
+    position: fixed !important;
+    top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+    inset: 0 !important;
+    width: 100vw !important; height: 100vh !important; height: 100dvh !important;
+    margin: 0 !important;
+    background: rgba(0,0,0,.7) !important;
+    z-index: 2147483647 !important;
+    display: flex !important; align-items: center !important; justify-content: center !important;
+    transform: none !important;
 }
 .ncard-modal {
+    position: relative;
     background: #1c1a17;
     border-radius: 12px;
     width: min(92vw, 900px);
     max-height: 86vh;
+    max-height: 86dvh;
     display: flex; flex-direction: column;
     overflow: hidden;
 }
@@ -95,45 +308,6 @@ function injectStyles() {
 }
 .ncard-grid img:hover { transform: scale(1.03); }
 
-/* ── 지시 팝업 ──────────────────────────────────────────── */
-.ncard-dir-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,.6);
-    z-index: 99999;
-    display: flex; align-items: center; justify-content: center;
-}
-.ncard-dir-box {
-    background: #232017;
-    border-radius: 14px;
-    padding: 22px 20px 16px;
-    width: min(90vw, 360px);
-    color: #eee;
-}
-.ncard-dir-box h3 { margin: 0 0 12px; font-size: 15px; font-weight: 500; }
-.ncard-dir-box textarea {
-    width: 100%;
-    min-height: 70px;
-    border-radius: 8px;
-    border: 1px solid rgba(255,255,255,.15);
-    background: rgba(255,255,255,.05);
-    color: #eee;
-    padding: 8px 10px;
-    font-size: 13px;
-    resize: vertical;
-    box-sizing: border-box;
-}
-.ncard-dir-btns { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
-.ncard-dir-btns button {
-    padding: 7px 16px;
-    border-radius: 8px;
-    border: none;
-    font-size: 13px;
-    cursor: pointer;
-}
-.ncard-dir-cancel { background: rgba(255,255,255,.1); color: #ccc; }
-.ncard-dir-ok { background: #d4a017; color: #1c1a17; font-weight: 500; }
-.ncard-dir-ok:hover { background: #e0ab1f; }
-
 @media (max-width: 600px) {
     .ncard-img { max-width: 240px; }
     .ncard-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; padding: 12px; }
@@ -142,40 +316,48 @@ function injectStyles() {
     document.head.appendChild(style);
 }
 
+// 모바일 중앙 고정 폴백 CSS
+function ensureFallbackStyles() {
+    if (document.getElementById('ncard-fallback-css')) return;
+    const style = document.createElement('style');
+    style.id = 'ncard-fallback-css';
+    style.textContent = `
+.ncard-popup-overlay{position:fixed!important;inset:0!important;top:0!important;left:0!important;right:0!important;bottom:0!important;width:100vw!important;height:100vh!important;margin:0!important;padding:0!important;background:rgba(0,0,0,.72)!important;z-index:2147483647!important;display:flex!important;align-items:center!important;justify-content:center!important;transform:none!important;-webkit-transform:none!important;}
+.ncard-popup{position:relative!important;margin:auto!important;transform:none!important;-webkit-transform:none!important;}
+.ncard-modal-overlay{position:fixed!important;inset:0!important;top:0!important;left:0!important;right:0!important;bottom:0!important;width:100vw!important;height:100vh!important;margin:0!important;background:rgba(0,0,0,.7)!important;z-index:2147483647!important;display:flex!important;align-items:center!important;justify-content:center!important;transform:none!important;}
+.ncard-modal{background:#1c1a17;border-radius:12px;width:min(92vw,900px);max-height:86vh;display:flex;flex-direction:column;overflow:hidden;}
+.ncard-wrap{display:flex;justify-content:center;margin-top:14px;}
+.ncard-img{max-width:320px;width:100%;border-radius:10px;cursor:pointer;}
+.ncard-msg-btn{cursor:pointer;touch-action:manipulation;}
+`;
+    document.head.appendChild(style);
+}
+
+// ── 상수 ──────────────────────────────────────────────────
 const EXT = 'narrative_card';
 
-const TEXT_MODELS = [
-    { value: 'gemini-3.5-flash',      label: '✨ Gemini 3.5 Flash' },
-    { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash Lite' },
-    { value: 'gemini-2.5-flash',      label: 'Gemini 2.5 Flash' },
-    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite' },
-];
-
-const LAYOUTS = [
-    { value: '3',  label: '서술 + 대사 + 서술 (3단)' },
-    { value: '5',  label: '서술 + 대사 + 서술 + 대사 + 서술 (5단)' },
-    { value: 'q',  label: '대사만 단독' },
-];
-
 const THEMES = [
-    { value: 'dark',   label: '다크 (무지 배경 + 세리프)', bg: '#1c1a17', text: '#ffffff', sub: 'rgba(255,255,255,0.5)', line: 'rgba(255,255,255,0.25)', meta: 'rgba(255,255,255,0.35)' },
-    { value: 'light',  label: '라이트 (무지 배경 + 세리프)', bg: '#f5f3ee', text: '#1c1a17', sub: 'rgba(28,26,23,0.55)', line: 'rgba(28,26,23,0.25)', meta: 'rgba(28,26,23,0.4)' },
-    { value: 'cream',  label: '크림톤 / 빈티지 페이퍼', bg: '#ece3d1', text: '#2b2418', sub: 'rgba(43,36,24,0.55)', line: 'rgba(43,36,24,0.3)', meta: 'rgba(43,36,24,0.45)' },
-    { value: 'spring', label: '🌸 봄 (벚꽃 파스텔)', bg: '#fdf1f4', text: '#5a2e3a', sub: 'rgba(170,90,110,0.65)', line: 'rgba(214,140,160,0.5)', meta: 'rgba(170,90,110,0.55)', accent: '#e8a3b3', deco: 'petals' },
-    { value: 'summer', label: '🌊 여름 (시원한 블루)', bg: '#0f3a4a', text: '#ffffff', sub: 'rgba(255,255,255,0.6)', line: 'rgba(135,220,235,0.4)', meta: 'rgba(255,255,255,0.45)', accent: '#7fd8e8', deco: 'waves' },
-    { value: 'autumn', label: '🍂 가을 (단풍 브라운)', bg: '#2e1f14', text: '#f4e3c9', sub: 'rgba(244,227,201,0.6)', line: 'rgba(214,138,73,0.5)', meta: 'rgba(244,227,201,0.5)', accent: '#d68a49', deco: 'leaves' },
-    { value: 'winter', label: '❄️ 겨울 (눈 내리는 네이비)', bg: '#10182a', text: '#eef2fb', sub: 'rgba(238,242,251,0.55)', line: 'rgba(180,200,235,0.4)', meta: 'rgba(238,242,251,0.45)', accent: '#aac3ec', deco: 'snow' },
+    // 기존 테마
+    { value: 'dark',      label: '🌑 다크 (무지 + 세리프)',       bg: '#1c1a17', text: '#ffffff', sub: 'rgba(255,255,255,0.5)',  line: 'rgba(255,255,255,0.25)', meta: 'rgba(255,255,255,0.35)' },
+    { value: 'light',     label: '☀️ 라이트 (무지 + 세리프)',     bg: '#f5f3ee', text: '#1c1a17', sub: 'rgba(28,26,23,0.55)',    line: 'rgba(28,26,23,0.25)',    meta: 'rgba(28,26,23,0.4)' },
+    { value: 'cream',     label: '📜 크림 / 빈티지 페이퍼',       bg: '#ece3d1', text: '#2b2418', sub: 'rgba(43,36,24,0.55)',    line: 'rgba(43,36,24,0.3)',     meta: 'rgba(43,36,24,0.45)' },
+    { value: 'spring',    label: '🌸 봄 (벚꽃 파스텔)',           bg: '#fdf1f4', text: '#5a2e3a', sub: 'rgba(170,90,110,0.65)',  line: 'rgba(214,140,160,0.5)',  meta: 'rgba(170,90,110,0.55)', accent: '#e8a3b3', deco: 'petals' },
+    { value: 'summer',    label: '🌊 여름 (시원한 블루)',          bg: '#0f3a4a', text: '#ffffff', sub: 'rgba(255,255,255,0.6)',  line: 'rgba(135,220,235,0.4)', meta: 'rgba(255,255,255,0.45)', accent: '#7fd8e8', deco: 'waves' },
+    { value: 'autumn',    label: '🍂 가을 (단풍 브라운)',          bg: '#2e1f14', text: '#f4e3c9', sub: 'rgba(244,227,201,0.6)', line: 'rgba(214,138,73,0.5)',   meta: 'rgba(244,227,201,0.5)', accent: '#d68a49', deco: 'leaves' },
+    { value: 'winter',    label: '❄️ 겨울 (눈 내리는 네이비)',    bg: '#10182a', text: '#eef2fb', sub: 'rgba(238,242,251,0.55)', line: 'rgba(180,200,235,0.4)', meta: 'rgba(238,242,251,0.45)', accent: '#aac3ec', deco: 'snow' },
+    // 신규 테마
+    { value: 'midnight',  label: '🌙 미드나잇 퍼플',              bg: '#0e0b1a', text: '#e8e0ff', sub: 'rgba(200,180,255,0.55)', line: 'rgba(150,100,255,0.35)', meta: 'rgba(200,180,255,0.4)', accent: '#9b6dff', deco: 'stars' },
+    { value: 'rosegold',  label: '🌹 로즈 골드',                  bg: '#1a0e0e', text: '#ffd9d9', sub: 'rgba(255,180,180,0.6)',  line: 'rgba(220,130,130,0.4)', meta: 'rgba(255,180,180,0.45)', accent: '#e8a0a0', deco: 'petals' },
+    { value: 'forest',    label: '🌿 포레스트 그린',              bg: '#0d1f12', text: '#d4f0c8', sub: 'rgba(180,230,160,0.6)', line: 'rgba(100,180,80,0.4)',   meta: 'rgba(180,230,160,0.45)', accent: '#7bc86a', deco: 'leaves' },
+    { value: 'neon',      label: '⚡ 네온 다크',                  bg: '#08080f', text: '#ffffff', sub: 'rgba(0,255,200,0.65)',   line: 'rgba(0,255,200,0.3)',   meta: 'rgba(0,255,200,0.45)', accent: '#00ffc8', deco: 'none' },
+    { value: 'parchment', label: '📖 양피지 (세피아)',             bg: '#d9c9a3', text: '#2a1e0e', sub: 'rgba(42,30,14,0.6)',    line: 'rgba(42,30,14,0.3)',    meta: 'rgba(42,30,14,0.45)' },
+    { value: 'mono',      label: '🖤 모노크롬 (신문 느낌)',        bg: '#f2f2f2', text: '#111111', sub: 'rgba(17,17,17,0.55)',   line: 'rgba(17,17,17,0.3)',    meta: 'rgba(17,17,17,0.4)' },
+    { value: 'dusk',      label: '🌅 황혼 (오렌지-퍼플)',         bg: '#1a0f1f', text: '#ffe8cc', sub: 'rgba(255,180,100,0.6)', line: 'rgba(220,130,70,0.4)',  meta: 'rgba(255,180,100,0.45)', accent: '#ff9b4e', deco: 'petals' },
 ];
 
 const DEFAULTS = {
-    api_mode: 'direct',
-    direct_api_key: '',
-    direct_project_id: '',
-    direct_region: 'global',
-    profile_id: '',
-    text_model: 'gemini-3.5-flash',
-    layout: '5',
     theme: 'dark',
+    font_size: 100,   // 100 = 기준치 (%)
 };
 
 function getExtSettings() {
@@ -195,94 +377,257 @@ function cfg() {
     return Object.assign({}, DEFAULTS, s);
 }
 
-// ── Vertex AI Express 호출 (Polaroid와 동일 패턴) ─────────
-async function vertexPost(apiKey, projectId, region, model, body) {
-    const regions = region === 'global' ? ['global', 'us-central1'] : [region];
-    let lastErr;
-    for (const r of regions) {
-        const isLast = r === regions[regions.length - 1];
-        const base = r === 'global'
-            ? 'https://aiplatform.googleapis.com/v1'
-            : `https://${r}-aiplatform.googleapis.com/v1`;
-        const url = `${base}/projects/${projectId}/locations/${r}/publishers/google/models/${model}:generateContent`;
-        try {
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-                body: JSON.stringify(body),
-            });
-            if (!res.ok) {
-                const err = await res.text();
-                lastErr = new Error(`Vertex API [${res.status}] (${r}/${model}): ${err.slice(0, 300)}`);
-                if ((res.status === 404 || res.status === 400) && !isLast) continue;
-                throw lastErr;
-            }
-            return await res.json();
-        } catch (e) {
-            lastErr = e;
-            if (!isLast) continue;
-            throw e;
+// ── 드래그 선택 → + 버튼 ─────────────────────────────────
+
+// 현재 발췌 목록 (팝업이 열려있는 동안 공유)
+// { text, type: 'narration'|'quote' }
+let excerptList = [];
+let _addBtn = null;
+let _lastMesEl = null;
+
+function removeAddBtn() {
+    if (_addBtn) { _addBtn.remove(); _addBtn = null; }
+}
+
+function showAddBtn(x, y, selectedText, mesEl) {
+    removeAddBtn();
+    const btn = document.createElement('button');
+    btn.className = 'ncard-add-btn';
+    btn.textContent = '+';
+    btn.title = '발췌에 추가';
+    btn.style.left = `${Math.min(x, window.innerWidth - 50)}px`;
+    btn.style.top = `${Math.max(y - 48, 6)}px`;
+    document.body.appendChild(btn);
+    _addBtn = btn;
+
+    const add = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        removeAddBtn();
+        // 발췌 추가
+        excerptList.push({ text: selectedText.trim(), type: 'narration' });
+        _lastMesEl = mesEl;
+        // 팝업이 이미 열려있으면 목록만 갱신, 없으면 열기
+        const existing = document.getElementById('ncard-popup-overlay');
+        if (existing) {
+            refreshPopupList();
+        } else {
+            openExcerptPopup(mesEl);
         }
+        window.getSelection()?.removeAllRanges();
+    };
+
+    btn.addEventListener('pointerup', add);
+    btn.addEventListener('touchend', add);
+    btn.addEventListener('click', add);
+}
+
+// 채팅 영역의 mouseup / touchend 이벤트로 드래그 감지
+document.addEventListener('mouseup', handleSelectionEnd, true);
+document.addEventListener('touchend', handleSelectionEnd, true);
+
+function handleSelectionEnd(e) {
+    // + 버튼 자체 클릭이면 무시
+    if (e.target?.closest?.('.ncard-add-btn')) return;
+
+    setTimeout(() => {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) { removeAddBtn(); return; }
+        const text = sel.toString().trim();
+        if (!text || text.length < 2) { removeAddBtn(); return; }
+
+        // 채팅 메시지 내부에서만 동작
+        const range = sel.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+        const mesEl = (container.nodeType === Node.TEXT_NODE ? container.parentElement : container)
+            ?.closest?.('.mes');
+        if (!mesEl) { removeAddBtn(); return; }
+
+        // 위치 계산
+        const rect = range.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + window.scrollY;
+
+        showAddBtn(x, rect.top - 8, text, mesEl);
+    }, 30);
+}
+
+// 다른 곳 클릭 시 + 버튼 제거
+document.addEventListener('pointerdown', (e) => {
+    if (!e.target?.closest?.('.ncard-add-btn')) removeAddBtn();
+}, true);
+
+// ── 발췌 팝업 ─────────────────────────────────────────────
+
+function openExcerptPopup(mesEl) {
+    if (document.getElementById('ncard-popup-overlay')) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'ncard-popup-overlay';
+    overlay.className = 'ncard-popup-overlay';
+
+    const popup = document.createElement('div');
+    popup.className = 'ncard-popup';
+    popup.setAttribute('style', 'position:relative!important;margin:auto!important;transform:none!important;');
+
+    // 헤드
+    const head = document.createElement('div');
+    head.className = 'ncard-popup-head';
+    head.innerHTML = `
+        <div class="ncard-popup-title">📜 발췌 편집</div>
+        <span class="ncard-popup-close" id="ncard-popup-close">&times;</span>
+    `;
+
+    // 바디
+    const body = document.createElement('div');
+    body.className = 'ncard-popup-body';
+    body.id = 'ncard-popup-body';
+
+    // 푸터
+    const foot = document.createElement('div');
+    foot.className = 'ncard-popup-foot';
+    foot.innerHTML = `
+        <button class="ncard-btn-clear" id="ncard-btn-clear">전체 삭제</button>
+        <button class="ncard-btn-gen" id="ncard-btn-gen">🖼️ 카드 만들기</button>
+    `;
+
+    popup.appendChild(head);
+    popup.appendChild(body);
+    popup.appendChild(foot);
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+
+    refreshPopupList();
+
+    // 이벤트
+    document.getElementById('ncard-popup-close')?.addEventListener('click', closePopup);
+    document.getElementById('ncard-popup-close')?.addEventListener('touchend', (e) => { e.preventDefault(); closePopup(); });
+
+    overlay.addEventListener('pointerdown', (e) => {
+        if (e.target === overlay) closePopup();
+    });
+
+    document.getElementById('ncard-btn-clear')?.addEventListener('click', () => {
+        excerptList = [];
+        refreshPopupList();
+    });
+
+    document.getElementById('ncard-btn-gen')?.addEventListener('click', async () => {
+        if (excerptList.length === 0) { toastr.warning('발췌된 텍스트가 없습니다.'); return; }
+        await runGenerate(mesEl || _lastMesEl);
+    });
+}
+
+function refreshPopupList() {
+    const body = document.getElementById('ncard-popup-body');
+    if (!body) return;
+    body.innerHTML = '';
+
+    if (excerptList.length === 0) {
+        body.innerHTML = '<div class="ncard-excerpt-empty">텍스트를 드래그해서 +를 누르면<br>여기에 추가됩니다.</div>';
+        return;
     }
-    throw lastErr || new Error('Vertex API 호출 실패');
+
+    excerptList.forEach((item, idx) => {
+        const row = document.createElement('div');
+        row.className = 'ncard-excerpt-item';
+
+        const typeRow = document.createElement('div');
+        typeRow.style.cssText = 'display:flex;flex-direction:column;gap:6px;flex:1;';
+
+        // 서술 / 대사 토글
+        const btnRow = document.createElement('div');
+        btnRow.className = 'ncard-type-row';
+
+        const btnNarr = document.createElement('button');
+        btnNarr.className = 'ncard-type-btn' + (item.type === 'narration' ? ' active' : '');
+        btnNarr.textContent = '서술';
+        btnNarr.addEventListener('click', () => {
+            excerptList[idx].type = 'narration';
+            refreshPopupList();
+        });
+
+        const btnQuote = document.createElement('button');
+        btnQuote.className = 'ncard-type-btn' + (item.type === 'quote' ? ' active' : '');
+        btnQuote.textContent = '대사';
+        btnQuote.addEventListener('click', () => {
+            excerptList[idx].type = 'quote';
+            refreshPopupList();
+        });
+
+        btnRow.appendChild(btnNarr);
+        btnRow.appendChild(btnQuote);
+
+        const textEl = document.createElement('div');
+        textEl.className = 'ncard-excerpt-text';
+        textEl.textContent = item.text;
+
+        typeRow.appendChild(btnRow);
+        typeRow.appendChild(textEl);
+
+        const delBtn = document.createElement('span');
+        delBtn.className = 'ncard-excerpt-del';
+        delBtn.innerHTML = '&times;';
+        delBtn.title = '삭제';
+        delBtn.addEventListener('click', () => {
+            excerptList.splice(idx, 1);
+            refreshPopupList();
+        });
+
+        row.appendChild(typeRow);
+        row.appendChild(delBtn);
+        body.appendChild(row);
+    });
 }
 
-async function apiPost(model, body) {
-    const c = cfg();
-    let apiKey = '';
-    let projectId = c.direct_project_id || '';
-    let region = c.direct_region || 'global';
+function closePopup() {
+    document.getElementById('ncard-popup-overlay')?.remove();
+}
 
-    if (c.api_mode === 'profile' && c.profile_id) {
-        apiKey = c.direct_api_key || '';
-        if (!apiKey) {
-            try {
-                const svc = SillyTavern.getContext().ConnectionManagerRequestService;
-                const profile = svc.getSupportedProfiles().find(p => p.id === c.profile_id);
-                if (profile) {
-                    const secretId = profile['secret-id'];
-                    const res = await fetch('/api/secrets/view', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ key: secretId }),
-                    });
-                    if (res.ok) {
-                        const data = await res.json();
-                        apiKey = data.value || data[secretId] || '';
-                    }
-                }
-            } catch (_) {}
-        }
-    } else {
-        apiKey = c.direct_api_key || '';
+// ── 발췌 목록으로 카드 렌더링 ────────────────────────────
+
+async function runGenerate(mesEl) {
+    const genBtn = document.getElementById('ncard-btn-gen');
+    if (genBtn) { genBtn.disabled = true; genBtn.textContent = '⏳ 렌더링 중...'; }
+
+    try {
+        const c = cfg();
+        const charName = getCharacterName();
+        const mesId = mesEl?.getAttribute('mesid');
+
+        const cardData = {
+            speaker: charName,
+            location: '',
+            lines: excerptList.map(item => ({ type: item.type, text: item.text })),
+        };
+
+        const dataUrl = renderCard(cardData, c.theme, charName, mesId, c.font_size);
+
+        closePopup();
+
+        // 인라인 표시 (마지막 mesEl에)
+        const targetMes = mesEl || _lastMesEl;
+        if (targetMes) showCardInline(targetMes, dataUrl);
+
+        // 갤러리 저장
+        await saveToGallery(charName, dataUrl, {
+            timestamp: new Date().toISOString(),
+            cardData,
+        });
+
+        // 초기화
+        excerptList = [];
+        _lastMesEl = null;
+
+        toastr.success('📜 카드 생성 완료!');
+    } catch (e) {
+        console.error('[NarrativeCard] 오류:', e);
+        toastr.error(e.message || '카드 생성 실패', '', { timeOut: 5000 });
+        if (genBtn) { genBtn.disabled = false; genBtn.textContent = '🖼️ 카드 만들기'; }
     }
-
-    if (!apiKey) throw new Error('API 키가 없습니다. 설정 패널에서 Vertex AI Express 키(AIza...)를 입력해주세요.');
-    if (!projectId) throw new Error('Project ID가 없습니다. 설정 패널에서 입력해주세요.');
-
-    return vertexPost(apiKey, projectId, region, model, body);
 }
 
-// ── 최근 채팅 맥락 수집 ────────────────────────────────────
-function getRecentChatContext(mesEl, maxMessages = 3) {
-    const targetId = parseInt(mesEl.getAttribute('mesid') || '-1', 10);
-    const allMes = Array.from(document.querySelectorAll('.mes'));
-    const targetIdx = allMes.findIndex(el => parseInt(el.getAttribute('mesid') || '-1', 10) === targetId);
-    const endIdx = targetIdx >= 0 ? targetIdx : allMes.length - 1;
-    const slice = allMes.slice(Math.max(0, endIdx - maxMessages + 1), endIdx + 1);
-
-    const lines = slice.map(el => {
-        const isUser = el.getAttribute('is_user') === 'true' || el.classList.contains('is_user');
-        const name = el.querySelector('.name_text')?.innerText?.trim() || (isUser ? 'User' : 'Character');
-        const text = el.querySelector('.mes_text')?.innerText?.trim() || '';
-        if (!text) return null;
-        return `[${isUser ? 'USER' : 'CHARACTER'} — ${name}]: ${text}`;
-    }).filter(Boolean);
-
-    return lines.join('\n\n');
-}
-
+// ── 캐릭터 이름 ──────────────────────────────────────────
 function getCharacterName() {
     try {
         const ctx = getContext();
@@ -293,89 +638,7 @@ function getCharacterName() {
     return '';
 }
 
-// ── 1단계: AI로 서술/대사 발췌 ──────────────────────────────
-const SAFETY_SETTINGS = [
-    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'OFF' },
-    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'OFF' },
-    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'OFF' },
-    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'OFF' },
-    { category: 'HARM_CATEGORY_CIVIC_INTEGRITY', threshold: 'OFF' },
-];
-
-// layout: '3' | '5' | 'q' → 반환 형식: { lines: [{type:'narration'|'quote', text}], speaker, location }
-async function extractCard(sceneText, chatContext, layout, charName) {
-    const c = cfg();
-
-    const structureSpec = layout === 'q'
-        ? `정확히 1개 항목: 가장 인상적인 대사 1줄.`
-        : layout === '3'
-            ? `정확히 3개 항목, 순서대로: 서술, 대사, 서술.`
-            : `정확히 5개 항목, 순서대로: 서술, 대사, 서술, 대사, 서술.`;
-
-    const prompt = `당신은 롤플레이 채팅에서 가장 인상적인 순간을 발췌하는 편집자입니다.
-
-아래 LATEST MESSAGE(마지막 메시지)를 중심으로, 가장 임팩트 있는 서술(지문)과 대사를 골라 카드용 텍스트를 만드세요.
-
-규칙:
-- ${structureSpec}
-- "서술"은 지문/행동 묘사 문장 1개 (원문에서 거의 그대로 가져오되, 너무 길면 자연스럽게 다듬어 1문장으로 압축. 25단어/60자 이내)
-- "대사"는 따옴표 안의 실제 대사 1줄 그대로 (의역하지 말고 원문 그대로, 따옴표는 빼고 텍스트만)
-- 화자 이름과 장소/상황을 짧게 1개씩 뽑아주세요 (예: 화자 "로카스", 장소 "스트리밍 룸")
-- 반드시 LATEST MESSAGE 안의 내용만 사용하세요. 이전 메시지는 인물/맥락 파악용으로만 참고.
-- 과장하거나 새로운 내용을 창작하지 마세요.
-
-이전 대화 맥락:
-${(chatContext || sceneText).slice(0, 2000)}
-
-LATEST MESSAGE (여기서 발췌):
-${sceneText.slice(0, 1500)}
-
-캐릭터 이름 참고: ${charName || '(알 수 없음)'}
-
-다음 JSON 형식으로만 응답하세요. 다른 설명이나 마크다운 코드블록 없이 순수 JSON만:
-{
-  "speaker": "화자 이름",
-  "location": "장소/상황 짧은 설명",
-  "lines": [
-    {"type": "narration", "text": "..."},
-    {"type": "quote", "text": "..."}
-  ]
-}`;
-
-    const data = await apiPost(c.text_model, {
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.6, maxOutputTokens: 20000 },
-        safetySettings: SAFETY_SETTINGS,
-    });
-
-    const finishReason = data?.candidates?.[0]?.finishReason;
-    console.log('[NarrativeCard] extract finishReason:', finishReason);
-
-    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-    if (!raw) {
-        console.warn('[NarrativeCard] 추출 응답 비정상:', JSON.stringify(data?.candidates?.[0] || data));
-        throw new Error('카드 내용 추출 실패 (응답 없음)');
-    }
-
-    // AI가 코드블록으로 감싸는 경우 제거
-    const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
-
-    let parsed;
-    try {
-        parsed = JSON.parse(cleaned);
-    } catch (e) {
-        console.warn('[NarrativeCard] JSON 파싱 실패, 원문:', cleaned);
-        throw new Error('카드 내용 파싱 실패');
-    }
-
-    if (!Array.isArray(parsed.lines) || parsed.lines.length === 0) {
-        throw new Error('추출된 카드 내용이 비어있습니다.');
-    }
-
-    return parsed;
-}
-
-// ── 계절 장식 그리기 ─────────────────────────────────────────
+// ── 계절/테마 장식 그리기 ───────────────────────────────
 function seededRandom(seed) {
     let s = seed;
     return () => {
@@ -385,12 +648,11 @@ function seededRandom(seed) {
 }
 
 function drawDecoration(ctx, W, H, theme) {
-    if (!theme.deco) return;
+    if (!theme.deco || theme.deco === 'none') return;
     const rand = seededRandom(42);
     ctx.save();
 
     if (theme.deco === 'petals') {
-        // 벚꽃잎: 모서리에 흩날리는 타원
         for (let i = 0; i < 14; i++) {
             const x = rand() * W;
             const y = rand() * H * 0.35 + (rand() > 0.5 ? H * 0.65 : 0);
@@ -407,7 +669,6 @@ function drawDecoration(ctx, W, H, theme) {
             ctx.restore();
         }
     } else if (theme.deco === 'waves') {
-        // 잔물결: 하단에 곡선 레이어
         ctx.globalAlpha = 0.15;
         ctx.strokeStyle = theme.accent;
         ctx.lineWidth = 1.5;
@@ -420,7 +681,6 @@ function drawDecoration(ctx, W, H, theme) {
             }
             ctx.stroke();
         }
-        // 상단에도 옅게
         ctx.globalAlpha = 0.08;
         for (let row = 0; row < 2; row++) {
             const baseY = 30 + row * 12;
@@ -432,7 +692,6 @@ function drawDecoration(ctx, W, H, theme) {
             ctx.stroke();
         }
     } else if (theme.deco === 'leaves') {
-        // 낙엽: 모서리에 작은 잎 모양
         for (let i = 0; i < 10; i++) {
             const x = rand() * W;
             const y = rand() * H * 0.3 + (rand() > 0.5 ? H * 0.7 : 0);
@@ -451,7 +710,6 @@ function drawDecoration(ctx, W, H, theme) {
             ctx.restore();
         }
     } else if (theme.deco === 'snow') {
-        // 눈송이: 작은 원형 점
         for (let i = 0; i < 26; i++) {
             const x = rand() * W;
             const y = rand() * H;
@@ -462,17 +720,28 @@ function drawDecoration(ctx, W, H, theme) {
             ctx.arc(x, y, r, 0, Math.PI * 2);
             ctx.fill();
         }
+    } else if (theme.deco === 'stars') {
+        // 별: 미드나잇 퍼플 테마
+        for (let i = 0; i < 30; i++) {
+            const x = rand() * W;
+            const y = rand() * H;
+            const r = 0.8 + rand() * 1.8;
+            ctx.fillStyle = theme.accent || '#fff';
+            ctx.globalAlpha = 0.15 + rand() * 0.3;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
 
     ctx.restore();
 }
 
-// ── 2단계: Canvas로 카드 이미지 합성 ────────────────────────
+// ── Canvas 카드 렌더링 ────────────────────────────────────
 function wrapText(ctx, text, maxWidth) {
-    const words = text.split('');
     const lines = [];
     let cur = '';
-    for (const ch of words) {
+    for (const ch of text) {
         const test = cur + ch;
         if (ctx.measureText(test).width > maxWidth && cur) {
             lines.push(cur);
@@ -485,50 +754,51 @@ function wrapText(ctx, text, maxWidth) {
     return lines;
 }
 
-function renderCard(cardData, themeKey, charName, mesId) {
+function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100) {
     const theme = THEMES.find(t => t.value === themeKey) || THEMES[0];
     const W = 760, PAD_X = 64, PAD_BOTTOM = 70;
-    const FONT_NARR = '13px Georgia, "Noto Serif KR", serif';
-    const FONT_QUOTE = 'bold 18px Georgia, "Noto Serif KR", serif';
-    const FONT_META = '11px Georgia, "Noto Serif KR", serif';
+
+    const scale = (fontSizePct || 100) / 100;
+    const baseNarr = Math.round(13 * scale);
+    const baseQuote = Math.round(18 * scale);
+    const baseMeta = Math.round(11 * scale);
+
+    const FONT_NARR  = `${baseNarr}px Georgia, "Noto Serif KR", serif`;
+    const FONT_QUOTE = `bold ${baseQuote}px Georgia, "Noto Serif KR", serif`;
+    const FONT_META  = `${baseMeta}px Georgia, "Noto Serif KR", serif`;
 
     const measureCanvas = document.createElement('canvas');
     const mctx = measureCanvas.getContext('2d');
     const maxTextWidth = W - PAD_X * 2;
 
-    // 줄 단위 높이 계산
     const blocks = cardData.lines.map(line => {
         const isQuote = line.type === 'quote';
         mctx.font = isQuote ? FONT_QUOTE : FONT_NARR;
         const text = isQuote ? `"${line.text}"` : line.text;
         const wrapped = wrapText(mctx, text, maxTextWidth);
-        const lineHeight = isQuote ? 30 : 24;
-        return { isQuote, wrapped, lineHeight, gap: 22 };
+        const lineHeight = isQuote ? Math.round(30 * scale) : Math.round(24 * scale);
+        return { isQuote, wrapped, lineHeight, gap: Math.round(22 * scale) };
     });
 
-    const dividerHeight = 1, dividerGap = 22;
     let contentHeight = 0;
     blocks.forEach((b, i) => {
         contentHeight += b.wrapped.length * b.lineHeight;
         if (i < blocks.length - 1) contentHeight += b.gap;
     });
 
-    const H = Math.max(600, contentHeight + 220 + PAD_BOTTOM);
+    const H = Math.max(500, contentHeight + 200 + PAD_BOTTOM);
 
     const canvas = document.createElement('canvas');
-    canvas.width = W * 2; // retina
+    canvas.width = W * 2;
     canvas.height = H * 2;
     const ctx = canvas.getContext('2d');
     ctx.scale(2, 2);
 
-    // 배경
     ctx.fillStyle = theme.bg;
     ctx.fillRect(0, 0, W, H);
 
-    // 계절 장식 (배경 위, 텍스트 아래)
     drawDecoration(ctx, W, H, theme);
 
-    // 텍스트 블록 그리기 (세로 중앙 정렬)
     let y = (H - contentHeight) / 2 - 20;
     ctx.textBaseline = 'alphabetic';
 
@@ -536,13 +806,12 @@ function renderCard(cardData, themeKey, charName, mesId) {
         ctx.font = b.isQuote ? FONT_QUOTE : FONT_NARR;
         ctx.fillStyle = b.isQuote ? theme.text : theme.sub;
         b.wrapped.forEach(line => {
-            ctx.fillText(line, PAD_X, y + b.lineHeight * 0.7);
+            ctx.fillText(line, PAD_X, y + b.lineHeight * 0.75);
             y += b.lineHeight;
         });
         if (i < blocks.length - 1) y += b.gap;
     });
 
-    // 하단 메타 정보
     ctx.font = FONT_META;
     ctx.fillStyle = theme.meta;
     const metaLeft = [charName, cardData.location].filter(Boolean).join(' · ');
@@ -557,7 +826,26 @@ function renderCard(cardData, themeKey, charName, mesId) {
     return canvas.toDataURL('image/png');
 }
 
-// ── 갤러리 저장/불러오기 (ST 서버 저장 — 기기 간 동기화 우선, 실패 시 IndexedDB 폴백) ──
+// ── 인라인 표시 ──────────────────────────────────────────
+function showCardInline(mesEl, dataUrl) {
+    const mesText = mesEl?.querySelector('.mes_text');
+    if (!mesText) return;
+
+    let wrap = mesEl.querySelector('.ncard-wrap');
+    if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.className = 'ncard-wrap';
+        mesText.insertAdjacentElement('afterend', wrap);
+    }
+    wrap.innerHTML = '';
+    const img = document.createElement('img');
+    img.className = 'ncard-img';
+    img.src = dataUrl;
+    img.addEventListener('click', () => window.open(dataUrl, '_blank'));
+    wrap.appendChild(img);
+}
+
+// ── 갤러리 저장/불러오기 ──────────────────────────────────
 const NCARD_DIR = 'user/narrative_card';
 const NCARD_INDEX_FILE = `${NCARD_DIR}/index.json`;
 
@@ -592,16 +880,6 @@ async function serverLoad(path) {
     } catch { return null; }
 }
 
-async function serverDelete(path) {
-    try {
-        await fetch('/api/userdata/delete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path }),
-        });
-    } catch (_) {}
-}
-
 let _ncardUseServer = null;
 async function checkServerAvailable() {
     if (_ncardUseServer !== null) return _ncardUseServer;
@@ -615,11 +893,10 @@ async function checkServerAvailable() {
     } catch (_) {
         _ncardUseServer = false;
     }
-    console.log('[NarrativeCard] 서버 저장 모드:', _ncardUseServer ? '✅ /api/userdata' : '⚠️ IndexedDB 폴백');
     return _ncardUseServer;
 }
 
-// ── IndexedDB 폴백 ──────────────────────────────────────────
+// IndexedDB 폴백
 const DB_NAME = 'NarrativeCardGallery';
 const STORE_NAME = 'cards';
 
@@ -637,22 +914,14 @@ function openDB() {
     });
 }
 
-async function loadIndex() {
-    return (await serverLoad(NCARD_INDEX_FILE)) || [];
-}
-async function saveIndex(index) {
-    await serverSave(NCARD_INDEX_FILE, index);
-}
-
 async function saveToGallery(charName, dataUrl, meta) {
     if (await checkServerAvailable()) {
         const id = Date.now() + '_' + Math.floor(Math.random() * 1e6);
         const item = { id, charName, dataUrl, meta, createdAt: Date.now() };
         await serverSave(`${NCARD_DIR}/cards/${id}.json`, item);
-        const index = await loadIndex();
+        const index = (await serverLoad(NCARD_INDEX_FILE)) || [];
         index.unshift({ id, charName, createdAt: item.createdAt });
-        await saveIndex(index);
-        console.log('[NarrativeCard] 서버 저장 완료:', id);
+        await serverSave(NCARD_INDEX_FILE, index);
     } else {
         try {
             const db = await openDB();
@@ -662,7 +931,6 @@ async function saveToGallery(charName, dataUrl, meta) {
                 tx.oncomplete = resolve;
                 tx.onerror = () => reject(tx.error);
             });
-            console.log('[NarrativeCard] IndexedDB 저장 완료');
         } catch (e) {
             console.warn('[NarrativeCard] 갤러리 저장 실패:', e);
         }
@@ -671,7 +939,7 @@ async function saveToGallery(charName, dataUrl, meta) {
 
 async function getAllCards() {
     if (await checkServerAvailable()) {
-        const index = await loadIndex();
+        const index = (await serverLoad(NCARD_INDEX_FILE)) || [];
         const items = [];
         for (const entry of index) {
             const item = await serverLoad(`${NCARD_DIR}/cards/${entry.id}.json`);
@@ -693,122 +961,19 @@ async function getAllCards() {
     }
 }
 
-// ── 메시지에 카드로 표시 ─────────────────────────────────────
-function showCardInline(btn, dataUrl) {
-    const mesEl = btn.closest('.mes');
-    const mesText = mesEl?.querySelector('.mes_text');
-    if (!mesText) return;
-
-    let wrap = mesEl.querySelector('.ncard-wrap');
-    if (!wrap) {
-        wrap = document.createElement('div');
-        wrap.className = 'ncard-wrap';
-        mesText.insertAdjacentElement('afterend', wrap);
-    }
-    wrap.innerHTML = '';
-    const img = document.createElement('img');
-    img.className = 'ncard-img';
-    img.src = dataUrl;
-    img.addEventListener('click', () => window.open(dataUrl, '_blank'));
-    wrap.appendChild(img);
-}
-
-// ── 버튼 클릭 → 카드 생성 ────────────────────────────────────
-async function runGenerate(messageText, btn, mesEl) {
-    btn.disabled = true;
-    const orig = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-
-    try {
-        toastr.info('📜 장면 발췌 중...', '', { timeOut: 3000 });
-        const c = cfg();
-        const charName = getCharacterName();
-        const chatContext = mesEl ? getRecentChatContext(mesEl, 3) : messageText;
-
-        const cardData = await extractCard(messageText, chatContext, c.layout, charName);
-        console.log('[NarrativeCard] cardData:', cardData);
-
-        const mesId = mesEl?.getAttribute('mesid');
-        const dataUrl = renderCard(cardData, c.theme, cardData.speaker || charName, mesId);
-
-        showCardInline(btn, dataUrl);
-
-        await saveToGallery(charName, dataUrl, {
-            timestamp: new Date().toISOString(),
-            snippet: messageText.slice(0, 120),
-            cardData,
-        });
-
-        toastr.success('📜 카드 생성 완료!');
-    } catch (e) {
-        console.error('[NarrativeCard] 오류:', e);
-        toastr.error(e.message || '카드 생성 실패', '', { timeOut: 5000 });
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = orig;
-    }
-}
-
-// ── 메시지 버튼 부착 (Polaroid 검증 패턴: extraMesButtons 우선 삽입) ─
-function attachButton(mesEl) {
-    if (mesEl.getAttribute('is_user') === 'true' || mesEl.classList.contains('is_user')) return;
-    if (mesEl.querySelector('.ncard-msg-btn')) return;
-
-    const btn = document.createElement('div');
-    btn.className = 'ncard-msg-btn fa-solid fa-quote-right';
-    btn.title = '서술 카드 만들기';
-    btn.style.cssText += 'touch-action:manipulation;cursor:pointer;';
-
-    // ① .extraMesButtons 안에 삽입 (Edit 버튼과 나란히, 메뉴 안쪽)
-    const extraBtns = mesEl.querySelector('.extraMesButtons');
-    if (extraBtns) {
-        extraBtns.appendChild(btn);
-        return;
-    }
-    // ② 폴백: .extraMesButtonsHint 앞
-    const hint = mesEl.querySelector('.extraMesButtonsHint');
-    if (hint) {
-        hint.insertAdjacentElement('beforebegin', btn);
-        return;
-    }
-    // ③ 폴백2: mes_buttons 블록 끝
-    const mesButtons = mesEl.querySelector('.mes_buttons');
-    if (mesButtons) mesButtons.appendChild(btn);
-}
-
-let _ncardBtnLock = false;
-async function handleNcardBtnTap(e) {
-    if (_ncardBtnLock) { e.preventDefault(); e.stopPropagation(); return; }
-    _ncardBtnLock = true;
-    setTimeout(() => { _ncardBtnLock = false; }, 600);
-
-    e.stopImmediatePropagation();
-    e.stopPropagation();
-    e.preventDefault();
-
-    const btn = e.currentTarget || e.target;
-    const mesEl = btn.closest('.mes');
-    if (!mesEl) { _ncardBtnLock = false; return; }
-    const text = mesEl.querySelector('.mes_text')?.innerText?.trim() || '';
-    if (!text) { _ncardBtnLock = false; return; }
-    await runGenerate(text, btn, mesEl);
-}
-
-// pointerup(모던) + touchend(구형/iOS) + click(데스크톱 폴백) 삼중 위임
-$(document).on('pointerup', '.ncard-msg-btn', handleNcardBtnTap);
-$(document).on('touchend', '.ncard-msg-btn', handleNcardBtnTap);
-$(document).on('click', '.ncard-msg-btn', handleNcardBtnTap);
-
-function attachAllButtons() {
-    document.querySelectorAll('.mes').forEach(attachButton);
-}
-
-// ── 갤러리 모달 ───────────────────────────────────────────────
+// ── 갤러리 모달 ──────────────────────────────────────────
 async function openGallery() {
     const cards = await getAllCards();
 
     const overlay = document.createElement('div');
+    overlay.id = 'ncard-gallery-modal';
     overlay.className = 'ncard-modal-overlay';
+    overlay.setAttribute('style',
+        'position:fixed!important;inset:0!important;top:0!important;left:0!important;right:0!important;bottom:0!important;' +
+        'width:100vw!important;height:100vh!important;margin:0!important;' +
+        'background:rgba(0,0,0,.7)!important;z-index:2147483647!important;' +
+        'display:flex!important;align-items:center!important;justify-content:center!important;transform:none!important;'
+    );
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 
     const modal = document.createElement('div');
@@ -826,7 +991,7 @@ async function openGallery() {
     const grid = document.createElement('div');
     grid.className = 'ncard-grid';
     if (cards.length === 0) {
-        grid.innerHTML = '<p style="color:#999;font-size:13px;">아직 생성된 카드가 없습니다.</p>';
+        grid.innerHTML = '<p style="color:#999;font-size:13px;grid-column:1/-1;">아직 생성된 카드가 없습니다.</p>';
     } else {
         cards.forEach(c => {
             const img = document.createElement('img');
@@ -842,18 +1007,13 @@ async function openGallery() {
     document.body.appendChild(overlay);
 }
 
-// ── 설정 패널 ───────────────────────────────────────────────
+// ── 설정 패널 ─────────────────────────────────────────────
 function buildSettingsHtml() {
     const c = cfg();
-    const textModelOpts = TEXT_MODELS.map(m =>
-        `<option value="${m.value}" ${c.text_model === m.value ? 'selected' : ''}>${m.label}</option>`
-    ).join('');
-    const layoutOpts = LAYOUTS.map(l =>
-        `<option value="${l.value}" ${c.layout === l.value ? 'selected' : ''}>${l.label}</option>`
-    ).join('');
     const themeOpts = THEMES.map(t =>
         `<option value="${t.value}" ${c.theme === t.value ? 'selected' : ''}>${t.label}</option>`
     ).join('');
+    const fs = c.font_size || 100;
 
     return `
 <div class="ncard-settings">
@@ -865,41 +1025,16 @@ function buildSettingsHtml() {
     <div class="inline-drawer-content">
 
       <div class="ncard-field">
-        <label>API 모드</label>
-        <select id="ncard-api-mode" class="text_pole">
-          <option value="direct" ${c.api_mode === 'direct' ? 'selected' : ''}>직접 입력</option>
-          <option value="profile" ${c.api_mode === 'profile' ? 'selected' : ''}>연결 프로필 사용</option>
-        </select>
-      </div>
-
-      <div class="ncard-field">
-        <label>Vertex AI Express API Key</label>
-        <input type="text" id="ncard-api-key" class="text_pole" value="${c.direct_api_key}" placeholder="AIza..." />
-      </div>
-
-      <div class="ncard-field">
-        <label>Project ID</label>
-        <input type="text" id="ncard-project-id" class="text_pole" value="${c.direct_project_id}" />
-      </div>
-
-      <div class="ncard-field">
-        <label>Region</label>
-        <input type="text" id="ncard-region" class="text_pole" value="${c.direct_region}" placeholder="global" />
-      </div>
-
-      <div class="ncard-field">
-        <label>텍스트 생성 모델</label>
-        <select id="ncard-text-model" class="text_pole">${textModelOpts}</select>
-      </div>
-
-      <div class="ncard-field">
-        <label>카드 구성</label>
-        <select id="ncard-layout" class="text_pole">${layoutOpts}</select>
-      </div>
-
-      <div class="ncard-field">
         <label>배경 / 톤</label>
         <select id="ncard-theme" class="text_pole">${themeOpts}</select>
+      </div>
+
+      <div class="ncard-field">
+        <label>글씨 크기</label>
+        <div class="ncard-font-size-row">
+          <input type="range" id="ncard-font-size" min="60" max="180" step="5" value="${fs}" />
+          <span class="ncard-font-size-val" id="ncard-font-size-val">${fs}%</span>
+        </div>
       </div>
 
       <div class="ncard-field" style="display:flex; gap:8px;">
@@ -913,16 +1048,16 @@ function buildSettingsHtml() {
 }
 
 function bindSettingsEvents() {
+    // 슬라이더 실시간 표시
+    $('#ncard-font-size').on('input', function () {
+        $('#ncard-font-size-val').text($(this).val() + '%');
+    });
+
     const save = () => {
         const s = getExtSettings();
         if (!s) return;
-        s.api_mode = $('#ncard-api-mode').val();
-        s.direct_api_key = $('#ncard-api-key').val().trim();
-        s.direct_project_id = $('#ncard-project-id').val().trim();
-        s.direct_region = ($('#ncard-region').val() || 'global').trim();
-        s.text_model = $('#ncard-text-model').val();
-        s.layout = $('#ncard-layout').val();
         s.theme = $('#ncard-theme').val();
+        s.font_size = parseInt($('#ncard-font-size').val(), 10) || 100;
         saveSettingsDebounced();
         toastr.success('설정 저장됨', '', { timeOut: 1500 });
     };
@@ -931,7 +1066,45 @@ function bindSettingsEvents() {
     $('#ncard-open-gallery').on('click', openGallery);
 }
 
-// ── Wand 메뉴에 항목 주입 (Polaroid와 동일 패턴: MutationObserver + 폴링) ─
+// ── 메시지 버튼 (발췌 팝업 열기) ─────────────────────────
+function attachButton(mesEl) {
+    if (mesEl.getAttribute('is_user') === 'true' || mesEl.classList.contains('is_user')) return;
+    if (mesEl.querySelector('.ncard-msg-btn')) return;
+
+    const btn = document.createElement('div');
+    btn.className = 'ncard-msg-btn fa-solid fa-quote-right';
+    btn.title = '발췌 카드 만들기 (드래그 후 +)';
+    btn.style.cssText += 'touch-action:manipulation;cursor:pointer;';
+
+    const handleTap = (e) => {
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+        e.preventDefault();
+        _lastMesEl = mesEl;
+        if (document.getElementById('ncard-popup-overlay')) {
+            refreshPopupList();
+        } else {
+            openExcerptPopup(mesEl);
+        }
+    };
+
+    btn.addEventListener('pointerup', handleTap);
+    btn.addEventListener('touchend', handleTap);
+    btn.addEventListener('click', handleTap);
+
+    const extraBtns = mesEl.querySelector('.extraMesButtons');
+    if (extraBtns) { extraBtns.appendChild(btn); return; }
+    const hint = mesEl.querySelector('.extraMesButtonsHint');
+    if (hint) { hint.insertAdjacentElement('beforebegin', btn); return; }
+    const mesButtons = mesEl.querySelector('.mes_buttons');
+    if (mesButtons) mesButtons.appendChild(btn);
+}
+
+function attachAllButtons() {
+    document.querySelectorAll('.mes').forEach(attachButton);
+}
+
+// ── Wand 메뉴 주입 ────────────────────────────────────────
 function injectWandMenu() {
     const injectItem = () => {
         const menu = document.getElementById('extensionsMenu');
@@ -942,16 +1115,13 @@ function injectWandMenu() {
         li.id = 'ncard-wand-item';
         li.innerHTML = `<i class="fa-solid fa-quote-right"></i> Narrative Card`;
         li.style.cssText = 'cursor:pointer; padding: 5px 16px; display:flex; align-items:center; gap:8px;';
-        li.addEventListener('click', (e) => {
+        const openG = (e) => {
             e.stopPropagation();
             document.getElementById('extensionsMenu')?.classList.remove('open');
             openGallery();
-        });
-        li.addEventListener('touchend', (e) => {
-            e.stopPropagation();
-            document.getElementById('extensionsMenu')?.classList.remove('open');
-            openGallery();
-        });
+        };
+        li.addEventListener('click', openG);
+        li.addEventListener('touchend', openG);
 
         const firstItem = menu.querySelector('li');
         if (firstItem) menu.insertBefore(li, firstItem);
@@ -964,9 +1134,7 @@ function injectWandMenu() {
     bodyObserver.observe(document.body, { childList: true, subtree: true });
 
     document.addEventListener('click', (e) => {
-        if (e.target?.closest?.('#extensionsMenuButton')) {
-            setTimeout(injectItem, 50);
-        }
+        if (e.target?.closest?.('#extensionsMenuButton')) setTimeout(injectItem, 50);
     });
 
     let tries = 0;
@@ -976,32 +1144,7 @@ function injectWandMenu() {
     }, 500);
 }
 
-// ── style.css 로드 실패/모바일 레이아웃 깨짐 대비 최소 동작 안전장치 ─
-// (모바일 환경에서 갤러리 모달이 화면 위쪽으로 밀려 보이는 문제 등을
-//  position:fixed + inset:0 + flex 중앙정렬을 !important로 강제해서 방지)
-function ensureFallbackStyles() {
-    try {
-        if (document.getElementById('ncard-fallback-css')) return;
-        const style = document.createElement('style');
-        style.id = 'ncard-fallback-css';
-        style.textContent = `
-.ncard-modal-overlay{position:fixed!important;inset:0!important;top:0!important;left:0!important;right:0!important;bottom:0!important;background:rgba(0,0,0,.7);z-index:2147483647!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:20px;margin:0!important;}
-.ncard-modal{background:#1c1a17;border-radius:12px;width:min(92vw,900px);max-height:86vh;max-height:86dvh;display:flex;flex-direction:column;overflow:hidden;}
-.ncard-modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.1);color:#fff;}
-.ncard-modal-close{cursor:pointer;opacity:.7;font-size:20px;}
-.ncard-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;padding:18px;overflow-y:auto;flex:1;}
-.ncard-grid img{width:100%;border-radius:8px;cursor:pointer;}
-.ncard-wrap{display:flex;justify-content:center;margin-top:14px;}
-.ncard-img{max-width:320px;width:100%;border-radius:10px;cursor:pointer;}
-.ncard-msg-btn{cursor:pointer;touch-action:manipulation;}
-`;
-        document.head.appendChild(style);
-    } catch (e) {
-        console.error('[NarrativeCard] 폴백 스타일 주입 실패:', e);
-    }
-}
-
-// ── 초기화 ──────────────────────────────────────────────────
+// ── 초기화 ───────────────────────────────────────────────
 jQuery(async () => {
     injectStyles();
     ensureFallbackStyles();
@@ -1017,5 +1160,5 @@ jQuery(async () => {
 
     injectWandMenu();
 
-    console.log('[NarrativeCard] 확장 로드 완료');
+    console.log('[NarrativeCard] 확장 로드 완료 (드래그 발췌 모드)');
 });
