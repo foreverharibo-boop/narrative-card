@@ -1364,7 +1364,12 @@ function openCardViewer(dataUrl) {
 }
 
 async function openGallery() {
+    // 이미 갤러리가 열려있으면 중복으로 새로 열지 않음 (모바일 터치+클릭 중복 이벤트 방지)
+    if (document.getElementById('ncard-gallery-modal')) return;
+
     const cards = await getAllCards();
+    // await 중 중복 호출이 있었을 수도 있으니 한 번 더 확인
+    if (document.getElementById('ncard-gallery-modal')) return;
 
     const overlay = document.createElement('div');
     overlay.id = 'ncard-gallery-modal';
@@ -1603,6 +1608,7 @@ function injectWandMenu() {
         li.innerHTML = `<i class="fa-solid fa-quote-right"></i> Narrative Card`;
         li.style.cssText = 'cursor:pointer; padding: 5px 16px; display:flex; align-items:center; gap:8px;';
         const openG = (e) => {
+            e.preventDefault();
             e.stopPropagation();
             document.getElementById('extensionsMenu')?.classList.remove('open');
             openGallery();
