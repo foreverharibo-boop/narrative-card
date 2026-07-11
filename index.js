@@ -461,13 +461,13 @@ const THEMES = [
     { value: 'bubblegum',   label: '🍬 버블검 (달콤한 핑크 팝)',  bg: '#ff9ec8', text: '#4a1535', sub: 'rgba(74,21,53,0.6)',    line: 'rgba(74,21,53,0.25)',   meta: 'rgba(74,21,53,0.5)',    accent: '#fff',    accent2: '#ffdf80', deco: 'bubblegum' },
     { value: 'galaxy',      label: '🌌 갤럭시 (우주 그라디언트)', bg: '#0a0015', text: '#e8d8ff', sub: 'rgba(232,216,255,0.55)', line: 'rgba(150,100,255,0.3)', meta: 'rgba(232,216,255,0.45)', accent: '#c78fff', accent2: '#7fffd4', deco: 'galaxy' },
     { value: 'cottagecore', label: '🌾 코티지코어 (들꽃과 나무)', bg: '#f7f0e3', text: '#3b2a14', sub: 'rgba(59,42,20,0.55)',   line: 'rgba(59,42,20,0.25)',   meta: 'rgba(59,42,20,0.45)',   accent: '#c9935a', accent2: '#7ab87a', deco: 'cottagecore' },
-    // 신규 테마 (풀밭 / 파도 / 오로라 / 폴라로이드 / 신문 / 비눗방울)
-    { value: 'meadow',     label: '🌿 풀밭',                    bg: '#d8f0b0', text: '#1a3a0e', sub: 'rgba(26,58,14,0.6)',    line: 'rgba(80,160,40,0.35)',  meta: 'rgba(26,58,14,0.45)',   accent: '#7bc84a', accent2: '#4a9a20', deco: 'meadow' },
-    { value: 'ocean',      label: '🌊 파도',                    bg: '#0a2240', text: '#d0f0ff', sub: 'rgba(208,240,255,0.6)', line: 'rgba(100,200,240,0.35)',meta: 'rgba(208,240,255,0.45)', accent: '#50c8f0', accent2: '#1a6aaa', deco: 'ocean' },
-    { value: 'aurora',     label: '🌌 오로라',                  bg: '#060d18', text: '#c8f8e8', sub: 'rgba(200,248,232,0.6)', line: 'rgba(80,220,160,0.3)',  meta: 'rgba(200,248,232,0.45)', accent: '#40e8a0', accent2: '#8844ff', deco: 'aurora' },
-    { value: 'polaroid',   label: '📷 폴라로이드',              bg: '#ffffff', text: '#222222', sub: 'rgba(34,34,34,0.55)',   line: 'rgba(34,34,34,0.2)',    meta: 'rgba(34,34,34,0.4)',    accent: '#888888', deco: 'polaroid' },
-    { value: 'newspaper',  label: '📰 신문',                    bg: '#f5f2e8', text: '#111111', sub: 'rgba(17,17,17,0.55)',   line: 'rgba(17,17,17,0.5)',    meta: 'rgba(17,17,17,0.45)',   accent: '#111111', deco: 'newspaper' },
-    { value: 'soap_bubble',label: '🫧 비눗방울',               bg: '#eef8ff', text: '#1a4a6a', sub: 'rgba(26,74,106,0.6)',   line: 'rgba(100,180,240,0.3)', meta: 'rgba(26,74,106,0.45)',  accent: '#80c8f0', accent2: '#b8e4ff', deco: 'soap_bubble' },
+    // 신규 테마
+    { value: 'meadow',      label: '🌿 풀밭',       bg: '#d8f0b0', text: '#1a3a0e', sub: 'rgba(26,58,14,0.6)',    line: 'rgba(80,160,40,0.35)',  meta: 'rgba(26,58,14,0.45)',   accent: '#7bc84a', accent2: '#4a9a20', deco: 'meadow' },
+    { value: 'ocean',       label: '🌊 파도',       bg: '#0a2240', text: '#d0f0ff', sub: 'rgba(208,240,255,0.6)', line: 'rgba(100,200,240,0.35)',meta: 'rgba(208,240,255,0.45)', accent: '#50c8f0', accent2: '#1a6aaa', deco: 'ocean' },
+    { value: 'aurora',      label: '🌌 오로라',     bg: '#060d18', text: '#c8f8e8', sub: 'rgba(200,248,232,0.6)', line: 'rgba(80,220,160,0.3)',  meta: 'rgba(200,248,232,0.45)', accent: '#40e8a0', accent2: '#8844ff', deco: 'aurora' },
+    { value: 'polaroid',    label: '📷 폴라로이드', bg: '#ede8df', text: '#222222', sub: 'rgba(34,34,34,0.55)',   line: 'rgba(34,34,34,0.2)',    meta: 'rgba(34,34,34,0.4)',    accent: '#888888', deco: 'polaroid' },
+    { value: 'newspaper',   label: '📰 신문',       bg: '#f5f2e8', text: '#111111', sub: 'rgba(17,17,17,0.55)',   line: 'rgba(17,17,17,0.5)',    meta: 'rgba(17,17,17,0.45)',   accent: '#111111', deco: 'newspaper' },
+    { value: 'soap_bubble', label: '🫧 비눗방울',   bg: '#eef8ff', text: '#1a4a6a', sub: 'rgba(26,74,106,0.6)',   line: 'rgba(100,180,240,0.3)', meta: 'rgba(26,74,106,0.45)',  accent: '#80c8f0', accent2: '#b8e4ff', deco: 'soap_bubble' },
 ];
 
 
@@ -1514,7 +1514,6 @@ function drawDecoration(ctx, W, H, theme) {
         ctx.strokeStyle = '#c9935a';
         ctx.lineWidth = 1.5;
         ctx.strokeRect(12, 12, W - 24, H - 24);
-    }
 
     } else if (theme.deco === 'meadow') {
         // ── 풀밭: 연초록 그라디언트 + 하단 풀잎 실루엣 ──
@@ -1523,8 +1522,7 @@ function drawDecoration(ctx, W, H, theme) {
         grd.addColorStop(1, '#c0e890');
         ctx.fillStyle = grd;
         ctx.fillRect(0, 0, W, H);
-
-        // 풀잎 레이어 1 (뒤)
+        // 풀잎 레이어 1
         ctx.globalAlpha = 0.22;
         ctx.fillStyle = '#4a9a20';
         ctx.beginPath();
@@ -1533,8 +1531,7 @@ function drawDecoration(ctx, W, H, theme) {
             if (x === 0) ctx.moveTo(x, gy); else ctx.lineTo(x, gy);
         }
         ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
-
-        // 풀잎 레이어 2 (앞)
+        // 풀잎 레이어 2
         ctx.globalAlpha = 0.28;
         ctx.fillStyle = '#6abf30';
         ctx.beginPath();
@@ -1543,10 +1540,8 @@ function drawDecoration(ctx, W, H, theme) {
             if (x === 0) ctx.moveTo(x, gy); else ctx.lineTo(x, gy);
         }
         ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
-
         // 작은 꽃 점
-        const flowerPos = [[0.12,0.88],[0.28,0.92],[0.55,0.87],[0.72,0.91],[0.88,0.89],[0.42,0.94]];
-        flowerPos.forEach(([fx, fy]) => {
+        [[0.12,0.88],[0.28,0.92],[0.55,0.87],[0.72,0.91],[0.88,0.89],[0.42,0.94]].forEach(([fx, fy]) => {
             ctx.globalAlpha = 0.5;
             ctx.fillStyle = '#ffe0f0';
             ctx.beginPath();
@@ -1555,20 +1550,18 @@ function drawDecoration(ctx, W, H, theme) {
         });
 
     } else if (theme.deco === 'ocean') {
-        // ── 파도: 딥 네이비 + 파도 레이어 ──
+        // ── 파도: 딥 네이비 그라디언트 + 파도 레이어 ──
         const grd = ctx.createLinearGradient(0, 0, 0, H);
         grd.addColorStop(0, '#081828');
         grd.addColorStop(1, '#0d3050');
         ctx.fillStyle = grd;
         ctx.fillRect(0, 0, W, H);
-
-        // 파도 레이어들
-        const waveLayers = [
+        // 파도 레이어
+        [
             { yBase: H * 0.78, amp: 10, freq: 55, color: '#1a5a90', alpha: 0.45 },
-            { yBase: H * 0.84, amp:  7, freq: 42, color: '#2278b8', alpha: 0.4  },
+            { yBase: H * 0.84, amp:  7, freq: 42, color: '#2278b8', alpha: 0.40 },
             { yBase: H * 0.90, amp:  5, freq: 30, color: '#3090d0', alpha: 0.35 },
-        ];
-        waveLayers.forEach(wl => {
+        ].forEach(wl => {
             ctx.globalAlpha = wl.alpha;
             ctx.fillStyle = wl.color;
             ctx.beginPath();
@@ -1578,7 +1571,6 @@ function drawDecoration(ctx, W, H, theme) {
             }
             ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
         });
-
         // 상단 잔물결
         ctx.globalAlpha = 0.1;
         ctx.strokeStyle = '#80d0f0';
@@ -1594,41 +1586,37 @@ function drawDecoration(ctx, W, H, theme) {
         }
 
     } else if (theme.deco === 'aurora') {
-        // ── 오로라: 딥 다크 + 녹색·보라 오로라 빛 + 별 ──
+        // ── 오로라: 딥 다크 + 녹/보라 글로우 + 별 ──
         const grd = ctx.createLinearGradient(0, 0, 0, H);
         grd.addColorStop(0, '#040a10');
         grd.addColorStop(1, '#08141c');
         ctx.fillStyle = grd;
         ctx.fillRect(0, 0, W, H);
-
-        // 오로라 빛줄기 (타원형 글로우)
-        const glows = [
+        // 오로라 글로우
+        [
             { x: 0.25, y: 0.28, rx: W * 0.45, ry: H * 0.18, c: '#00ff88', a: 0.07 },
             { x: 0.65, y: 0.22, rx: W * 0.40, ry: H * 0.15, c: '#8844ff', a: 0.08 },
             { x: 0.45, y: 0.35, rx: W * 0.35, ry: H * 0.12, c: '#00ddff', a: 0.06 },
             { x: 0.15, y: 0.40, rx: W * 0.30, ry: H * 0.10, c: '#44ff88', a: 0.05 },
             { x: 0.80, y: 0.38, rx: W * 0.28, ry: H * 0.10, c: '#aa66ff', a: 0.06 },
-        ];
-        glows.forEach(g => {
-            const ng = ctx.createRadialGradient(g.x * W, g.y * H, 0, g.x * W, g.y * H, Math.max(g.rx, g.ry));
+        ].forEach(g => {
+            const maxR = Math.max(g.rx, g.ry);
+            const ng = ctx.createRadialGradient(g.x * W, g.y * H, 0, g.x * W, g.y * H, maxR);
             ng.addColorStop(0, g.c);
             ng.addColorStop(1, 'transparent');
             ctx.globalAlpha = g.a;
             ctx.fillStyle = ng;
             ctx.save();
             ctx.translate(g.x * W, g.y * H);
-            ctx.scale(g.rx / Math.max(g.rx, g.ry), g.ry / Math.max(g.rx, g.ry));
+            ctx.scale(g.rx / maxR, g.ry / maxR);
             ctx.beginPath();
-            ctx.arc(0, 0, Math.max(g.rx, g.ry), 0, Math.PI * 2);
+            ctx.arc(0, 0, maxR, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
         });
-
         // 별
         for (let i = 0; i < 50; i++) {
-            const x = rand() * W;
-            const y = rand() * H * 0.7;
-            const r = 0.5 + rand() * 1.5;
+            const x = rand() * W, y = rand() * H * 0.7, r = 0.5 + rand() * 1.5;
             ctx.globalAlpha = 0.15 + rand() * 0.45;
             ctx.fillStyle = '#ffffff';
             ctx.beginPath();
@@ -1637,87 +1625,65 @@ function drawDecoration(ctx, W, H, theme) {
         }
 
     } else if (theme.deco === 'polaroid') {
-        // ── 폴라로이드: 두꺼운 크림 테두리 + 흰 사진 영역 ──
-        // 외부 크림 배경
+        // ── 폴라로이드: 크림 외부 + 흰 사진 영역 ──
         ctx.fillStyle = '#ede8df';
         ctx.fillRect(0, 0, W, H);
-
-        // 흰 사진 영역 (상단 패딩 포함, 하단은 캡션 공간)
-        const padH = Math.round(W * 0.045);  // 사진 영역 사방 여백
-        const captionH = Math.round(H * 0.14); // 하단 캡션 공간
-        const photoX = padH;
-        const photoY = padH;
-        const photoW = W - padH * 2;
-        const photoH = H - padH * 2 - captionH;
-
+        const padH = Math.round(W * 0.045);
+        const captionH = Math.round(H * 0.14);
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(photoX, photoY, photoW, photoH);
-
-        // 사진 영역 안쪽 미세한 그림자 효과 (상단/좌측 미세 어두운 선)
+        ctx.fillRect(padH, padH, W - padH * 2, H - padH * 2 - captionH);
+        // 사진 영역 상단/좌측 미세 그림자
         ctx.globalAlpha = 0.06;
         ctx.fillStyle = '#000000';
-        ctx.fillRect(photoX, photoY, photoW, 3);
-        ctx.fillRect(photoX, photoY, 3, photoH);
+        ctx.fillRect(padH, padH, W - padH * 2, 3);
+        ctx.fillRect(padH, padH, 3, H - padH * 2 - captionH);
 
     } else if (theme.deco === 'newspaper') {
-        // ── 신문: 크림 배경 + 마스트헤드 + 구분선 ──
+        // ── 신문: 크림 배경 + 마스트헤드 ──
         ctx.fillStyle = '#f5f2e8';
         ctx.fillRect(0, 0, W, H);
-
-        const padX = Math.round(W * 0.07);
         const mastH = Math.round(H * 0.18);
-
-        // 마스트헤드 영역 배경 (살짝 더 어두운 크림)
+        const padX = Math.round(W * 0.07);
+        // 마스트헤드 배경
         ctx.globalAlpha = 0.18;
         ctx.fillStyle = '#c8c0a0';
         ctx.fillRect(0, 0, W, mastH);
-
-        // 마스트헤드 상단 굵은 선
+        // 상단 굵은 선
         ctx.globalAlpha = 1;
         ctx.fillStyle = '#111111';
         ctx.fillRect(0, 0, W, Math.round(H * 0.012));
-
         // 마스트헤드 하단 이중선
         const lineY = mastH - Math.round(H * 0.012);
         ctx.fillRect(0, lineY, W, Math.round(H * 0.006));
         ctx.globalAlpha = 0.4;
         ctx.fillRect(0, lineY + Math.round(H * 0.009), W, Math.round(H * 0.003));
-
-        // 신문 제목 텍스트 (마스트헤드 안에)
+        // 제목 텍스트
         ctx.globalAlpha = 1;
         ctx.fillStyle = '#111111';
-        const mastFontSize = Math.round(H * 0.065);
-        ctx.font = `bold ${mastFontSize}px "Times New Roman", serif`;
+        ctx.font = `bold ${Math.round(H * 0.065)}px "Times New Roman", serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('THE NARRATIVE', W / 2, mastH * 0.52);
-
-        // 날짜/에디션 소문자
-        const subFontSize = Math.round(H * 0.022);
-        ctx.font = `${subFontSize}px "Times New Roman", serif`;
+        ctx.font = `${Math.round(H * 0.022)}px "Times New Roman", serif`;
         ctx.globalAlpha = 0.6;
         ctx.fillText('SPECIAL EDITION', W / 2, mastH * 0.82);
-
-        // 본문 영역 위 헤드라인 구분선
+        // 본문 위 구분선
         ctx.globalAlpha = 0.35;
         ctx.fillStyle = '#111111';
         ctx.fillRect(padX, mastH + Math.round(H * 0.04), W - padX * 2, 1);
-
         // 하단 구분선
         ctx.globalAlpha = 0.2;
         ctx.fillRect(padX, H - Math.round(H * 0.1), W - padX * 2, 1);
 
     } else if (theme.deco === 'soap_bubble') {
-        // ── 비눗방울: 흰색+하늘색 기반 + 반투명 버블들 ──
+        // ── 비눗방울: 흰+하늘색 그라디언트 + 반투명 버블 ──
         const grd = ctx.createLinearGradient(0, 0, W * 0.5, H);
         grd.addColorStop(0, '#f0f9ff');
         grd.addColorStop(0.5, '#e4f4ff');
         grd.addColorStop(1, '#f8fcff');
         ctx.fillStyle = grd;
         ctx.fillRect(0, 0, W, H);
-
-        // 버블 정의
-        const bubbles = [
+        [
             { x: 0.88, y: 0.12, r: 0.10, c: '#a8d8f8', a: 0.18 },
             { x: 0.10, y: 0.82, r: 0.13, c: '#90ccf0', a: 0.16 },
             { x: 0.82, y: 0.85, r: 0.08, c: '#b8e0ff', a: 0.18 },
@@ -1725,21 +1691,18 @@ function drawDecoration(ctx, W, H, theme) {
             { x: 0.07, y: 0.18, r: 0.07, c: '#a0d0f0', a: 0.14 },
             { x: 0.92, y: 0.55, r: 0.05, c: '#b0dcff', a: 0.14 },
             { x: 0.55, y: 0.92, r: 0.07, c: '#c8ecff', a: 0.15 },
-        ];
-        bubbles.forEach(b => {
+        ].forEach(b => {
             const br = b.r * Math.min(W, H);
-            // 버블 테두리
             ctx.globalAlpha = b.a * 1.8;
             ctx.strokeStyle = b.c;
             ctx.lineWidth = 1.2;
             ctx.beginPath();
             ctx.arc(b.x * W, b.y * H, br, 0, Math.PI * 2);
             ctx.stroke();
-            // 버블 내부 (매우 연하게)
             ctx.globalAlpha = b.a * 0.5;
             ctx.fillStyle = b.c;
             ctx.fill();
-            // 하이라이트 반짝이
+            // 하이라이트
             ctx.globalAlpha = 0.55;
             ctx.fillStyle = '#ffffff';
             ctx.beginPath();
@@ -1875,58 +1838,6 @@ function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, rati
         ctx.fillStyle = bgColorOverride || theme.bg;
         ctx.fillRect(0, 0, W, H);
         drawDecoration(ctx, W, H, theme);
-    }
-
-    // ── 폴라로이드: 텍스트를 흰 사진 영역 안에 배치 ──
-    if (theme.value === 'polaroid') {
-        const padH = Math.round(W * 0.045);
-        const captionH = Math.round(H * 0.14);
-        const photoX = padH;
-        const photoY = padH;
-        const photoW = W - padH * 2;
-        const photoH = H - padH * 2 - captionH;
-        const textPad = Math.round(photoW * 0.06);
-        const textStartX = photoX + textPad;
-        let py = photoY + (photoH - contentHeight) / 2;
-        ctx.textBaseline = 'alphabetic';
-        blocks.forEach((b, i) => {
-            ctx.font = FONT_NARR;
-            ctx.fillStyle = textColorOverride || theme.text;
-            b.wrapped.forEach(line => {
-                ctx.fillText(line, textStartX, py + b.lineHeight * 0.75);
-                py += b.lineHeight;
-            });
-            if (i < blocks.length - 1) py += b.gap;
-        });
-        ctx.font = FONT_META;
-        ctx.fillStyle = theme.meta;
-        ctx.textAlign = 'center';
-        ctx.fillText(charName || '', W / 2, photoY + photoH + captionH * 0.55);
-        return canvas.toDataURL('image/png');
-    }
-
-    // ── 신문: 마스트헤드 아래부터 텍스트 배치 ──
-    if (theme.value === 'newspaper') {
-        const mastH = Math.round(H * 0.18);
-        const padX = Math.round(W * 0.07);
-        const textStartY = mastH + Math.round(H * 0.08);
-        const lineH = Math.round(22 * scale);
-        ctx.textBaseline = 'alphabetic';
-        let ny = textStartY;
-        blocks.forEach((b, i) => {
-            ctx.font = FONT_NARR;
-            ctx.fillStyle = textColorOverride || theme.text;
-            b.wrapped.forEach(line => {
-                ctx.fillText(line, padX, ny + lineH * 0.8);
-                ny += lineH;
-            });
-            if (i < blocks.length - 1) ny += b.gap;
-        });
-        ctx.font = FONT_META;
-        ctx.fillStyle = theme.meta;
-        ctx.textAlign = 'left';
-        ctx.fillText(charName || '', padX, H - Math.round(H * 0.05));
-        return canvas.toDataURL('image/png');
     }
 
     let y = (H - contentHeight) / 2 - 20;
