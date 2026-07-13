@@ -2333,28 +2333,40 @@ function injectWandMenu() {
         if (!menu) return false;
         if (menu.querySelector('#ncard-wand-item')) return true;
 
-        const firstItem = menu.querySelector('li');
+        // 태그 종류(li, div, a 등)에 상관없이 실제 첫 항목을 가져옴
+        const firstItem = menu.firstElementChild;
         let li;
 
         if (firstItem) {
-            // 기존 메뉴 항목을 그대로 복제해서 동일한 스타일(폰트/크기/색)을 상속받음
+            // 기존 메뉴 항목을 그대로 복제해서 동일한 스타일(폰트/크기/색/태그)을 상속받음
             li = firstItem.cloneNode(true);
             li.id = 'ncard-wand-item';
             li.removeAttribute('data-i18n');
 
-            // 아이콘 교체 (기존 항목의 아이콘 요소 클래스를 재사용)
-            const iconEl = li.querySelector('i, .fa-solid, .fa-regular, [class*="fa-"]');
+            // 아이콘 교체 (기존 항목의 fa 아이콘 요소를 찾아 클래스만 교체)
+            const iconEl = li.querySelector('[class*="fa-"]');
             if (iconEl) {
-                iconEl.className = iconEl.className.replace(/fa-[a-z0-9-]+/g, (m) => m).replace(/\bfa-\S+\b/g, '');
+                Array.from(iconEl.classList).forEach(cls => {
+                    if (/^fa-/.test(cls) && cls !== 'fa-solid' && cls !== 'fa-regular') {
+                        iconEl.classList.remove(cls);
+                    }
+                });
                 iconEl.classList.add('fa-solid', 'fa-quote-right');
             }
 
-            // 텍스트 노드/스팬 교체
-            const textNode = Array.from(li.childNodes).find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
-            if (textNode) {
-                textNode.textContent = ' Narrative Card';
-            } else {
-                const span = li.querySelector('span');
+            // 텍스트 교체: 텍스트를 담고 있는 노드를 찾아서 교체
+            let replaced = false;
+            const walker = document.createTreeWalker(li, NodeFilter.SHOW_TEXT);
+            let node;
+            while ((node = walker.nextNode())) {
+                if (node.textContent.trim()) {
+                    node.textContent = node.textContent.replace(node.textContent.trim(), 'Narrative Card');
+                    replaced = true;
+                    break;
+                }
+            }
+            if (!replaced) {
+                const span = li.querySelector('span, small');
                 if (span) span.textContent = 'Narrative Card';
                 else li.appendChild(document.createTextNode(' Narrative Card'));
             }
