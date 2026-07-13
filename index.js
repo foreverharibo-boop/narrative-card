@@ -175,7 +175,7 @@ function injectStyles() {
     border-radius: 6px;
     padding: 4px 8px;
     resize: vertical;
-    min-height: 110px;
+    min-height: 220px;
     font-family: inherit;
     word-break: break-all;
     box-sizing: border-box;
