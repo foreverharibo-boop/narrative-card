@@ -2333,10 +2333,39 @@ function injectWandMenu() {
         if (!menu) return false;
         if (menu.querySelector('#ncard-wand-item')) return true;
 
-        const li = document.createElement('li');
-        li.id = 'ncard-wand-item';
-        li.innerHTML = `<i class="fa-solid fa-quote-right"></i> Narrative Card`;
-        li.style.cssText = 'cursor:pointer; padding: 5px 16px; display:flex; align-items:center; gap:8px;';
+        const firstItem = menu.querySelector('li');
+        let li;
+
+        if (firstItem) {
+            // 기존 메뉴 항목을 그대로 복제해서 동일한 스타일(폰트/크기/색)을 상속받음
+            li = firstItem.cloneNode(true);
+            li.id = 'ncard-wand-item';
+            li.removeAttribute('data-i18n');
+
+            // 아이콘 교체 (기존 항목의 아이콘 요소 클래스를 재사용)
+            const iconEl = li.querySelector('i, .fa-solid, .fa-regular, [class*="fa-"]');
+            if (iconEl) {
+                iconEl.className = iconEl.className.replace(/fa-[a-z0-9-]+/g, (m) => m).replace(/\bfa-\S+\b/g, '');
+                iconEl.classList.add('fa-solid', 'fa-quote-right');
+            }
+
+            // 텍스트 노드/스팬 교체
+            const textNode = Array.from(li.childNodes).find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+            if (textNode) {
+                textNode.textContent = ' Narrative Card';
+            } else {
+                const span = li.querySelector('span');
+                if (span) span.textContent = 'Narrative Card';
+                else li.appendChild(document.createTextNode(' Narrative Card'));
+            }
+        } else {
+            // 폴백: 복제할 항목이 없으면 기존 방식대로 생성
+            li = document.createElement('li');
+            li.id = 'ncard-wand-item';
+            li.innerHTML = `<i class="fa-solid fa-quote-right"></i> Narrative Card`;
+            li.style.cssText = 'cursor:pointer; padding: 5px 16px; display:flex; align-items:center; gap:8px;';
+        }
+
         const openG = (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -2346,7 +2375,6 @@ function injectWandMenu() {
         li.addEventListener('click', openG);
         li.addEventListener('touchend', openG);
 
-        const firstItem = menu.querySelector('li');
         if (firstItem) menu.insertBefore(li, firstItem);
         else menu.appendChild(li);
         return true;
