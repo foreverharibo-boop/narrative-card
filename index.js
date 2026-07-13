@@ -12,6 +12,17 @@ function injectStyles() {
     const style = document.createElement('style');
     style.id = 'ncard-injected-css';
     style.textContent = `
+/* ── 마법봉 메뉴 항목 폰트 보정 (테마 CSS 미상속 대비) ─────── */
+#ncard-wand-item {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: inherit;
+    font-weight: normal;
+}
+#ncard-wand-item i { width: 16px; text-align: center; flex-shrink: 0; }
+
 /* ── 드래그 선택 + 버튼 ─────────────────────────────────── */
 .ncard-add-btn {
     position: fixed !important;
@@ -2333,50 +2344,13 @@ function injectWandMenu() {
         if (!menu) return false;
         if (menu.querySelector('#ncard-wand-item')) return true;
 
-        // 태그 종류(li, div, a 등)에 상관없이 실제 첫 항목을 가져옴
-        const firstItem = menu.firstElementChild;
-        let li;
-
-        if (firstItem) {
-            // 기존 메뉴 항목을 그대로 복제해서 동일한 스타일(폰트/크기/색/태그)을 상속받음
-            li = firstItem.cloneNode(true);
-            li.id = 'ncard-wand-item';
-            li.removeAttribute('data-i18n');
-
-            // 아이콘 교체 (기존 항목의 fa 아이콘 요소를 찾아 클래스만 교체)
-            const iconEl = li.querySelector('[class*="fa-"]');
-            if (iconEl) {
-                Array.from(iconEl.classList).forEach(cls => {
-                    if (/^fa-/.test(cls) && cls !== 'fa-solid' && cls !== 'fa-regular') {
-                        iconEl.classList.remove(cls);
-                    }
-                });
-                iconEl.classList.add('fa-solid', 'fa-quote-right');
-            }
-
-            // 텍스트 교체: 텍스트를 담고 있는 노드를 찾아서 교체
-            let replaced = false;
-            const walker = document.createTreeWalker(li, NodeFilter.SHOW_TEXT);
-            let node;
-            while ((node = walker.nextNode())) {
-                if (node.textContent.trim()) {
-                    node.textContent = node.textContent.replace(node.textContent.trim(), 'Narrative Card');
-                    replaced = true;
-                    break;
-                }
-            }
-            if (!replaced) {
-                const span = li.querySelector('span, small');
-                if (span) span.textContent = 'Narrative Card';
-                else li.appendChild(document.createTextNode(' Narrative Card'));
-            }
-        } else {
-            // 폴백: 복제할 항목이 없으면 기존 방식대로 생성
-            li = document.createElement('li');
-            li.id = 'ncard-wand-item';
-            li.innerHTML = `<i class="fa-solid fa-quote-right"></i> Narrative Card`;
-            li.style.cssText = 'cursor:pointer; padding: 5px 16px; display:flex; align-items:center; gap:8px;';
-        }
+        // SillyTavern 확장들이 공통으로 쓰는 표준 마법봉 메뉴 마크업
+        // (list-group-item 클래스로 테마의 폰트/색/간격을 그대로 상속받음)
+        const li = document.createElement('div');
+        li.id = 'ncard-wand-item';
+        li.className = 'list-group-item flex-container flexGap5 interactable';
+        li.tabIndex = 0;
+        li.innerHTML = `<i class="fa-solid fa-quote-right extensionsMenuExtensionButton"></i><span>Narrative Card</span>`;
 
         const openG = (e) => {
             e.preventDefault();
@@ -2387,6 +2361,7 @@ function injectWandMenu() {
         li.addEventListener('click', openG);
         li.addEventListener('touchend', openG);
 
+        const firstItem = menu.firstElementChild;
         if (firstItem) menu.insertBefore(li, firstItem);
         else menu.appendChild(li);
         return true;
