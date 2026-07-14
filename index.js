@@ -823,6 +823,9 @@ function closePopup() {
     document.getElementById('ncard-popup-overlay')?.remove();
 }
 
+// 갤러리 "수정"으로 들어올 때, 복원할 스타일 값을 임시로 담아두는 곳
+let _pendingEditMeta = null;
+
 // ── 발췌 목록으로 카드 렌더링 ────────────────────────────
 
 
@@ -839,6 +842,14 @@ function openPreviewPopup(mesEl) {
         overlayOpacity: 50,  // 사진 위 오버레이 투명도 (%)
         charName: getCharacterName(), // 카드 하단에 표시될 이름 (수정 가능)
     };
+    // 갤러리에서 "수정"으로 들어온 경우, 저장돼 있던 스타일 값을 덮어씀
+    // (옛날 카드는 style 정보가 없을 수 있으므로 undefined 값은 기본값을 유지)
+    if (_pendingEditMeta) {
+        Object.entries(_pendingEditMeta).forEach(([k, v]) => {
+            if (v !== undefined) _previewState[k] = v;
+        });
+        _pendingEditMeta = null;
+    }
 
     const overlay = document.createElement('div');
     overlay.className = 'ncard-popup-overlay';
@@ -1047,6 +1058,17 @@ function openPreviewPopup(mesEl) {
     opacityRow.style.opacity = '0.4';
     body.appendChild(opacityRow);
 
+    // 수정 모드로 들어온 경우, 저장돼 있던 배경 사진/오버레이 상태 복원
+    if (_previewState.bgImage) {
+        bgPhotoThumb.src = _previewState.bgImage.src;
+        bgPhotoThumb.style.display = 'block';
+        bgPhotoClear.style.display = 'inline';
+        opacitySlider.disabled = false;
+        opacitySlider.value = _previewState.overlayOpacity;
+        opacityVal.textContent = _previewState.overlayOpacity + '%';
+        opacityRow.style.opacity = '1';
+    }
+
     // 2) 카드 비율
     const ratioWrap = document.createElement('div');
     ratioWrap.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;flex:1;';
@@ -1183,6 +1205,8 @@ function openPreviewPopup(mesEl) {
 
 // 현재 미리보기/생성 옵션 상태
 let _previewState = null;
+// 갤러리에서 "수정"으로 들어온 경우, 새로 저장하지 않고 이 id의 카드를 덮어씀
+let _editingCardId = null;
 
 async function runGenerate(mesEl) {
     try {
@@ -1210,11 +1234,29 @@ async function runGenerate(mesEl) {
             state.overlayOpacity ?? 50
         );
 
-        // 갤러리 저장
-        const savedId = await saveToGallery(charName, dataUrl, {
+        // 갤러리 저장/수정용 meta (스타일 옵션 전체 포함 — 나중에 수정 시 복원용)
+        const metaToSave = {
             timestamp: new Date().toISOString(),
             cardData,
-        });
+            style: {
+                theme: state.theme || c.theme,
+                fontSize: state.fontSize || c.font_size,
+                ratio: state.ratio || c.ratio || 'landscape',
+                textColor: state.textColor || null,
+                bgColor: state.bgColor || null,
+                overlayOpacity: state.overlayOpacity ?? 50,
+                bgImageDataUrl: state.bgImage ? state.bgImage.src : null,
+            },
+        };
+
+        let savedId;
+        if (_editingCardId) {
+            await updateGalleryItem(_editingCardId, dataUrl, metaToSave, charName);
+            savedId = _editingCardId;
+            _editingCardId = null;
+        } else {
+            savedId = await saveToGallery(charName, dataUrl, metaToSave);
+        }
 
         // 초기화
         excerptList = [];
@@ -2041,6 +2083,44 @@ async function saveToGallery(charName, dataUrl, meta) {
     }
 }
 
+async function updateGalleryItem(id, dataUrl, meta, charName) {
+    if (await checkServerAvailable()) {
+        try {
+            const index = (await serverLoad(NCARD_INDEX_FILE)) || [];
+            const entry = index.find(x => x.id === id);
+            const createdAt = entry ? entry.createdAt : Date.now();
+            const item = { id, charName, dataUrl, meta, createdAt };
+            await serverSave(`${NCARD_DIR}/cards/${id}.json`, item);
+            if (entry) entry.charName = charName;
+            await serverSave(NCARD_INDEX_FILE, index);
+            return id;
+        } catch (e) {
+            console.warn('[NarrativeCard] 갤러리 수정 실패:', e);
+            return null;
+        }
+    } else {
+        try {
+            const db = await openDB();
+            return await new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                const getReq = store.get(id);
+                getReq.onsuccess = () => {
+                    const existing = getReq.result;
+                    const createdAt = existing ? existing.createdAt : Date.now();
+                    const putReq = store.put({ id, charName, dataUrl, meta, createdAt });
+                    putReq.onerror = () => reject(putReq.error);
+                };
+                tx.oncomplete = () => resolve(id);
+                tx.onerror = () => reject(tx.error);
+            });
+        } catch (e) {
+            console.warn('[NarrativeCard] 갤러리 수정 실패:', e);
+            return null;
+        }
+    }
+}
+
 async function deleteCard(id) {
     if (await checkServerAvailable()) {
         try {
@@ -2157,6 +2237,45 @@ function openCardViewer(dataUrl) {
     document.addEventListener('keydown', onKey);
 }
 
+// 갤러리에서 "✏️ 수정"을 눌렀을 때: 저장된 텍스트/스타일을 복원해서
+// 카드 만들기 과정을 처음부터(발췌 편집 → 옵션) 다시 밟도록 함
+async function startEditCard(c) {
+    const meta = c.meta || {};
+    const cardData = meta.cardData || { lines: [] };
+    const style = meta.style || {};
+
+    // 1) 발췌 텍스트 복원
+    excerptList = (cardData.lines || []).map(l => ({ text: l.text }));
+    _lastMesEl = null;
+
+    // 2) 스타일 복원 준비 (배경 사진은 비동기 로드 필요)
+    let bgImage = null;
+    if (style.bgImageDataUrl) {
+        bgImage = await new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = style.bgImageDataUrl;
+        });
+    }
+    _pendingEditMeta = {
+        theme: style.theme,
+        fontSize: style.fontSize,
+        ratio: style.ratio,
+        textColor: style.textColor ?? null,
+        bgColor: style.bgColor ?? null,
+        overlayOpacity: style.overlayOpacity ?? 50,
+        bgImage,
+        charName: cardData.speaker || c.charName || '',
+    };
+
+    // 3) 이 카드를 새로 저장하지 않고 덮어쓰도록 표시
+    _editingCardId = c.id;
+
+    // 4) 발췌 편집 화면부터 다시 시작
+    openExcerptPopup(null);
+}
+
 async function openGallery() {
     // 이미 갤러리가 열려있으면 중복으로 새로 열지 않음 (모바일 터치+클릭 중복 이벤트 방지)
     if (document.getElementById('ncard-gallery-modal')) return;
@@ -2239,6 +2358,14 @@ async function openGallery() {
             const btnRow = document.createElement('div');
             btnRow.style.cssText = 'display:flex;gap:4px;padding:6px;background:rgba(0,0,0,0.6);flex-shrink:0;';
 
+            const btnEdit = document.createElement('button');
+            btnEdit.textContent = '✏️ 수정';
+            btnEdit.style.cssText = 'flex:1;padding:4px 0;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.18);color:#fff;';
+            btnEdit.addEventListener('click', () => {
+                overlay.remove();
+                startEditCard(c);
+            });
+
             const btnDl = document.createElement('button');
             btnDl.textContent = '💾 저장';
             btnDl.style.cssText = 'flex:1;padding:4px 0;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;background:#d4a017;color:#1c1a17;';
@@ -2268,6 +2395,7 @@ async function openGallery() {
                 if (grid.children.length === 0) grid.innerHTML = '<p style="color:#666;font-size:13px;grid-column:1/-1;text-align:center;padding:40px 0;">아직 생성된 카드가 없습니다.</p>';
             });
 
+            btnRow.appendChild(btnEdit);
             btnRow.appendChild(btnDl);
             btnRow.appendChild(btnDel);
             item.appendChild(img);
