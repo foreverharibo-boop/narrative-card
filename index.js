@@ -837,6 +837,7 @@ function openPreviewPopup(mesEl) {
         bgColor: null,
         bgImage: null,       // 로드된 Image 객체 (배경 사진)
         overlayOpacity: 50,  // 사진 위 오버레이 투명도 (%)
+        charName: getCharacterName(), // 카드 하단에 표시될 이름 (수정 가능)
     };
 
     const overlay = document.createElement('div');
@@ -881,6 +882,20 @@ function openPreviewPopup(mesEl) {
         row.appendChild(contentEl);
         return row;
     }
+
+    // 0) 캐릭터 이름 (카드 하단에 표시됨, 수정 가능)
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.value = _previewState.charName || '';
+    nameInput.placeholder = '이름 없음';
+    nameInput.style.cssText = 'flex:1;background:#ffffff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:8px;padding:5px 8px;font-size:12px;';
+    let nameDebounce;
+    nameInput.addEventListener('input', () => {
+        _previewState.charName = nameInput.value;
+        clearTimeout(nameDebounce);
+        nameDebounce = setTimeout(doPreview, 200);
+    });
+    body.appendChild(ctrlRow('이름', nameInput));
 
     // 1) 테마
     const themeSelect = document.createElement('select');
@@ -1152,7 +1167,7 @@ function openPreviewPopup(mesEl) {
     overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) overlay.remove(); });
 
     function doPreview() {
-        const charName = getCharacterName();
+        const charName = _previewState.charName;
         const mesId = mesEl?.getAttribute('mesid');
         const cardData = {
             speaker: charName, location: '',
@@ -1173,7 +1188,7 @@ async function runGenerate(mesEl) {
     try {
         const c = cfg();
         const state = _previewState || {};
-        const charName = getCharacterName();
+        const charName = state.charName || getCharacterName();
         const mesId = mesEl?.getAttribute('mesid');
 
         const cardData = {
