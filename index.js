@@ -1990,182 +1990,68 @@ function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, rati
 function showCardInline(mesEl, dataUrl) { /* 비활성화 */ }
 
 // ── 갤러리 저장/불러오기 ──────────────────────────────────
-const NCARD_DIR = 'user/narrative_card';
-const NCARD_INDEX_FILE = `${NCARD_DIR}/index.json`;
-
-async function serverSave(path, data) {
-    const res = await fetch('/api/userdata/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path, data: typeof data === 'string' ? data : JSON.stringify(data) }),
-    });
-    if (!res.ok) {
-        const msg = await res.text().catch(() => res.status);
-        throw new Error(`서버 저장 실패 [${res.status}]: ${path} — ${msg}`);
+// extension_settings는 SillyTavern이 계정별로 서버의 settings.json에 실제로
+// 저장해주는 공식 저장소라서, 같은 계정으로 접속하면 PC/폰 어디서든 동기화됨.
+function galleryStore() {
+    if (!extension_settings[EXT]) extension_settings[EXT] = {};
+    if (!extension_settings[EXT].gallery) {
+        extension_settings[EXT].gallery = { index: [], cards: {} };
     }
-}
-
-async function serverLoad(path) {
-    const res = await fetch('/api/userdata/load', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path }),
-    });
-    if (res.status === 404 || res.status === 400) return null;
-    if (!res.ok) {
-        const msg = await res.text().catch(() => res.status);
-        throw new Error(`서버 읽기 실패 [${res.status}]: ${path} — ${msg}`);
-    }
-    const text = await res.text();
-    try {
-        const outer = JSON.parse(text);
-        if (outer && typeof outer.data === 'string') return JSON.parse(outer.data);
-        return outer;
-    } catch { return null; }
-}
-
-let _ncardUseServer = null;
-async function checkServerAvailable() {
-    if (_ncardUseServer !== null) return _ncardUseServer;
-    try {
-        const res = await fetch('/api/userdata/load', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: NCARD_INDEX_FILE }),
-        });
-        _ncardUseServer = res.ok; // 200번대만 서버 사용 가능으로 인정 (404 등이면 IndexedDB 폴백)
-    } catch (_) {
-        _ncardUseServer = false;
-    }
-    return _ncardUseServer;
-}
-
-// IndexedDB 폴백
-const DB_NAME = 'NarrativeCardGallery';
-const STORE_NAME = 'cards';
-
-function openDB() {
-    return new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, 1);
-        req.onupgradeneeded = () => {
-            const db = req.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-            }
-        };
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-    });
+    return extension_settings[EXT].gallery;
 }
 
 async function saveToGallery(charName, dataUrl, meta) {
-    if (await checkServerAvailable()) {
+    try {
+        const store = galleryStore();
         const id = Date.now() + '_' + Math.floor(Math.random() * 1e6);
-        const item = { id, charName, dataUrl, meta, createdAt: Date.now() };
-        await serverSave(`${NCARD_DIR}/cards/${id}.json`, item);
-        const index = (await serverLoad(NCARD_INDEX_FILE)) || [];
-        index.unshift({ id, charName, createdAt: item.createdAt });
-        await serverSave(NCARD_INDEX_FILE, index);
+        const createdAt = Date.now();
+        store.cards[id] = { id, charName, dataUrl, meta, createdAt };
+        store.index.unshift({ id, charName, createdAt });
+        saveSettingsDebounced();
         return id;
-    } else {
-        try {
-            const db = await openDB();
-            return await new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_NAME, 'readwrite');
-                const req = tx.objectStore(STORE_NAME).add({ charName, dataUrl, meta, createdAt: Date.now() });
-                tx.oncomplete = () => resolve(req.result);
-                tx.onerror = () => reject(tx.error);
-            });
-        } catch (e) {
-            console.warn('[NarrativeCard] 갤러리 저장 실패:', e);
-            return null;
-        }
+    } catch (e) {
+        console.warn('[NarrativeCard] 갤러리 저장 실패:', e);
+        return null;
     }
 }
 
 async function updateGalleryItem(id, dataUrl, meta, charName) {
-    if (await checkServerAvailable()) {
-        try {
-            const index = (await serverLoad(NCARD_INDEX_FILE)) || [];
-            const entry = index.find(x => x.id === id);
-            const createdAt = entry ? entry.createdAt : Date.now();
-            const item = { id, charName, dataUrl, meta, createdAt };
-            await serverSave(`${NCARD_DIR}/cards/${id}.json`, item);
-            if (entry) entry.charName = charName;
-            await serverSave(NCARD_INDEX_FILE, index);
-            return id;
-        } catch (e) {
-            console.warn('[NarrativeCard] 갤러리 수정 실패:', e);
-            return null;
-        }
-    } else {
-        try {
-            const db = await openDB();
-            return await new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_NAME, 'readwrite');
-                const store = tx.objectStore(STORE_NAME);
-                const getReq = store.get(id);
-                getReq.onsuccess = () => {
-                    const existing = getReq.result;
-                    const createdAt = existing ? existing.createdAt : Date.now();
-                    const putReq = store.put({ id, charName, dataUrl, meta, createdAt });
-                    putReq.onerror = () => reject(putReq.error);
-                };
-                tx.oncomplete = () => resolve(id);
-                tx.onerror = () => reject(tx.error);
-            });
-        } catch (e) {
-            console.warn('[NarrativeCard] 갤러리 수정 실패:', e);
-            return null;
-        }
+    try {
+        const store = galleryStore();
+        const existing = store.cards[id];
+        const createdAt = existing ? existing.createdAt : Date.now();
+        store.cards[id] = { id, charName, dataUrl, meta, createdAt };
+        const entry = store.index.find(x => x.id === id);
+        if (entry) entry.charName = charName;
+        else store.index.unshift({ id, charName, createdAt });
+        saveSettingsDebounced();
+        return id;
+    } catch (e) {
+        console.warn('[NarrativeCard] 갤러리 수정 실패:', e);
+        return null;
     }
 }
 
 async function deleteCard(id) {
-    if (await checkServerAvailable()) {
-        try {
-            await fetch('/api/userdata/save', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: `${NCARD_DIR}/cards/${id}.json`, data: '' }),
-            });
-        } catch (_) {}
-        const index = (await serverLoad(NCARD_INDEX_FILE)) || [];
-        await serverSave(NCARD_INDEX_FILE, index.filter(e => e.id !== id));
-    } else {
-        try {
-            const db = await openDB();
-            await new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_NAME, 'readwrite');
-                tx.objectStore(STORE_NAME).delete(id);
-                tx.oncomplete = resolve;
-                tx.onerror = () => reject(tx.error);
-            });
-        } catch (e) { console.warn('[NarrativeCard] 삭제 실패:', e); }
+    try {
+        const store = galleryStore();
+        delete store.cards[id];
+        store.index = store.index.filter(e => e.id !== id);
+        saveSettingsDebounced();
+    } catch (e) {
+        console.warn('[NarrativeCard] 삭제 실패:', e);
     }
 }
 
 async function getAllCards() {
-    if (await checkServerAvailable()) {
-        const index = (await serverLoad(NCARD_INDEX_FILE)) || [];
-        const items = [];
-        for (const entry of index) {
-            const item = await serverLoad(`${NCARD_DIR}/cards/${entry.id}.json`);
-            if (item) items.push(item);
-        }
-        return items;
-    } else {
-        try {
-            const db = await openDB();
-            return await new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_NAME, 'readonly');
-                const req = tx.objectStore(STORE_NAME).getAll();
-                req.onsuccess = () => resolve((req.result || []).reverse());
-                req.onerror = () => reject(req.error);
-            });
-        } catch (e) {
-            return [];
-        }
+    try {
+        const store = galleryStore();
+        return store.index
+            .map(entry => store.cards[entry.id])
+            .filter(Boolean);
+    } catch (e) {
+        console.warn('[NarrativeCard] 갤러리 불러오기 실패:', e);
+        return [];
     }
 }
 
