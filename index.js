@@ -1212,7 +1212,10 @@ async function runGenerate(mesEl) {
     try {
         const c = cfg();
         const state = _previewState || {};
-        const charName = state.charName || getCharacterName();
+        // 빈 문자열(이름 없음)도 유효한 값으로 취급 — state 자체가 없을 때만 기본 이름 사용
+        const charName = (state.charName !== undefined && state.charName !== null)
+            ? state.charName
+            : getCharacterName();
         const mesId = mesEl?.getAttribute('mesid');
 
         const cardData = {
