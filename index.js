@@ -2412,6 +2412,83 @@ function injectWandMenu() {
 }
 
 // ── 초기화 ───────────────────────────────────────────────
+// ── 예전 IndexedDB 갤러리 → 새 서버(계정) 저장소로 마이그레이션 ───
+// (예전 버전에서 브라우저 로컬(IndexedDB)에만 저장되던 카드들을
+//  extension_settings 기반 서버 저장소로 한 번만 복사해옴)
+async function migrateOldIndexedDbGallery() {
+    const OLD_DB_NAME = 'NarrativeCardGallery';
+    const OLD_STORE_NAME = 'cards';
+    const MIGRATION_FLAG = 'ncard_idb_migrated';
+
+    if (extension_settings[EXT]?.[MIGRATION_FLAG]) return; // 이미 마이그레이션 완료
+
+    let dbExists = true;
+    try {
+        // 기존 DB가 없으면 여기서 새로 생성돼버리므로, databases() 목록으로 먼저 존재 여부 확인
+        if (indexedDB.databases) {
+            const dbs = await indexedDB.databases();
+            dbExists = dbs.some(d => d.name === OLD_DB_NAME);
+        }
+    } catch (_) { /* databases() 미지원 브라우저면 그냥 진행 */ }
+
+    if (!dbExists) {
+        if (!extension_settings[EXT]) extension_settings[EXT] = {};
+        extension_settings[EXT][MIGRATION_FLAG] = true;
+        saveSettingsDebounced();
+        return;
+    }
+
+    try {
+        const oldItems = await new Promise((resolve, reject) => {
+            const req = indexedDB.open(OLD_DB_NAME, 1);
+            req.onupgradeneeded = () => {
+                // 옛 스토어가 없는 상태로 새로 열리는 경우 → 마이그레이션할 게 없음
+                const db = req.result;
+                if (!db.objectStoreNames.contains(OLD_STORE_NAME)) {
+                    db.createObjectStore(OLD_STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                }
+            };
+            req.onsuccess = () => {
+                const db = req.result;
+                if (!db.objectStoreNames.contains(OLD_STORE_NAME)) { resolve([]); return; }
+                const tx = db.transaction(OLD_STORE_NAME, 'readonly');
+                const getAllReq = tx.objectStore(OLD_STORE_NAME).getAll();
+                getAllReq.onsuccess = () => resolve(getAllReq.result || []);
+                getAllReq.onerror = () => reject(getAllReq.error);
+            };
+            req.onerror = () => reject(req.error);
+        });
+
+        if (oldItems.length > 0) {
+            const store = galleryStore();
+            let migrated = 0;
+            oldItems.forEach(old => {
+                const id = 'migrated_' + old.id + '_' + Date.now();
+                if (store.cards[id]) return;
+                store.cards[id] = {
+                    id, charName: old.charName, dataUrl: old.dataUrl,
+                    meta: old.meta, createdAt: old.createdAt || Date.now(),
+                };
+                store.index.push({ id, charName: old.charName, createdAt: old.createdAt || Date.now() });
+                migrated++;
+            });
+            // 최신순 정렬 유지
+            store.index.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            if (migrated > 0) {
+                saveSettingsDebounced();
+                console.log(`[NarrativeCard] 이전 기기 로컬 저장소에서 카드 ${migrated}개를 서버로 옮겼어`);
+                toastr.success(`이전에 저장된 카드 ${migrated}개를 서버로 옮겼어요`, 'Narrative Card', { timeOut: 4000 });
+            }
+        }
+    } catch (e) {
+        console.warn('[NarrativeCard] 이전 갤러리 마이그레이션 실패:', e);
+    }
+
+    if (!extension_settings[EXT]) extension_settings[EXT] = {};
+    extension_settings[EXT][MIGRATION_FLAG] = true;
+    saveSettingsDebounced();
+}
+
 jQuery(async () => {
     injectStyles();
     ensureFallbackStyles();
@@ -2420,6 +2497,7 @@ jQuery(async () => {
     bindSettingsEvents();
 
     injectWandMenu();
+    migrateOldIndexedDbGallery();
 
     console.log('[NarrativeCard] 확장 로드 완료 (드래그 발췌 모드)');
 });
