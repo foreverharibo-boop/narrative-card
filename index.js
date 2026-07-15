@@ -2450,9 +2450,9 @@ function buildSettingsHtml() {
         </div>
       </div>
 
-      <div class="ncard-field" style="display:flex; gap:8px;">
-        <button id="ncard-save-settings" class="menu_button">저장</button>
-        <button id="ncard-open-gallery" class="menu_button">갤러리 열기</button>
+      <div class="ncard-field" style="display:flex; gap:8px; width:100%;">
+        <button id="ncard-save-settings" class="menu_button" style="flex:1 1 0; min-width:0; white-space:nowrap;">저장</button>
+        <button id="ncard-open-gallery" class="menu_button" style="flex:1 1 0; min-width:0; white-space:nowrap;">갤러리 열기</button>
       </div>
 
     </div>
