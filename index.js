@@ -6,6 +6,38 @@
 import { getContext, extension_settings } from '../../../extensions.js';
 import { saveSettingsDebounced } from '../../../../script.js';
 
+// ── 웹폰트 강제 로드 (기기별 시스템 폰트 차이 방지) ─────────
+// 안드로이드/iOS 모두 한글 세리프(명조체) 시스템 폰트가 기본 설치돼 있지
+// 않은 경우가 많아, CSS에 'Noto Serif KR'을 지정해도 기기에 따라 다른
+// (주로 산세리프) 폰트로 렌더링되는 문제가 있음. Google Fonts를 통해
+// 웹폰트를 직접 불러와서 항상 동일한 서체가 나오도록 고정함.
+let _fontLoadPromise = null;
+function ensureFontReady() {
+    if (_fontLoadPromise) return _fontLoadPromise;
+
+    _fontLoadPromise = (async () => {
+        try {
+            if (!document.getElementById('ncard-webfont-link')) {
+                const link = document.createElement('link');
+                link.id = 'ncard-webfont-link';
+                link.rel = 'stylesheet';
+                link.href = 'https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&display=swap';
+                document.head.appendChild(link);
+            }
+            if (document.fonts && document.fonts.load) {
+                await Promise.all([
+                    document.fonts.load('16px "Noto Serif KR"'),
+                    document.fonts.load('bold 16px "Noto Serif KR"'),
+                ]);
+            }
+        } catch (e) {
+            console.warn('[NarrativeCard] 웹폰트 로드 실패 (시스템 기본 폰트로 표시됨):', e);
+        }
+    })();
+
+    return _fontLoadPromise;
+}
+
 // ── CSS 주입 ──────────────────────────────────────────────
 function injectStyles() {
     if (document.getElementById('ncard-injected-css')) return;
@@ -515,6 +547,26 @@ const TEXT_COLORS = [
     { label: '커스텀',  value: 'custom' },
 ];
 
+const MARK_COLORS = [
+    { label: '노랑',   value: '#ffe150' },
+    { label: '핑크',   value: '#ff9ec8' },
+    { label: '연두',   value: '#b0f090' },
+    { label: '하늘',   value: '#8fd0ff' },
+    { label: '보라',   value: '#c9a8ff' },
+    { label: '오렌지', value: '#ffb060' },
+    { label: '민트',   value: '#7ee8c8' },
+    { label: '커스텀', value: 'custom' },
+];
+
+// hex 색상을 반투명 rgba 문자열로 변환 (형광펜 배경용)
+function hexToRgba(hex, alpha = 0.55) {
+    const h = hex.replace('#', '');
+    const r = parseInt(h.substring(0, 2), 16);
+    const g = parseInt(h.substring(2, 4), 16);
+    const b = parseInt(h.substring(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+}
+
 const BG_COLORS = [
     { label: '테마 기본', value: null },
     { label: '흰색',   value: '#ffffff' },
@@ -708,6 +760,16 @@ function openExcerptPopup(mesEl) {
     });
 }
 
+// 편집 텍스트 안의 **볼드**, ==형광펜== 마커를 화면용 HTML로 변환
+// (실제 카드 렌더링 시에도 동일한 마커를 파싱해서 사용)
+function markerToHtml(text) {
+    const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    let html = esc(text);
+    html = html.replace(/==(.+?)==/g, '<mark style="background:#fff2a8;color:inherit;padding:0 1px;">$1</mark>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    return html;
+}
+
 function refreshPopupList() {
     const body = document.getElementById('ncard-popup-body');
     if (!body) return;
@@ -725,7 +787,7 @@ function refreshPopupList() {
         // ── 표시 모드 ──────────────────────────────────────
         const textEl = document.createElement('div');
         textEl.className = 'ncard-excerpt-text';
-        textEl.textContent = item.text;
+        textEl.innerHTML = markerToHtml(item.text);
 
         const btnGroup = document.createElement('div');
         btnGroup.style.cssText = 'display:flex;flex-direction:column;gap:2px;flex-shrink:0;';
@@ -752,6 +814,37 @@ function refreshPopupList() {
         textarea.className = 'ncard-excerpt-textarea';
         textarea.value = item.text;
 
+        // 굵게 / 형광펜 툴바 — 텍스트를 드래그로 선택하고 버튼만 누르면 마커가 자동으로 붙음
+        const markToolbar = document.createElement('div');
+        markToolbar.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;flex-shrink:0;';
+
+        function applyMarker(prefix, suffix) {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            if (start === end) { toastr.info('굵게/형광펜 처리할 부분을 먼저 드래그해서 선택해줘'); return; }
+            const val = textarea.value;
+            const selected = val.slice(start, end);
+            textarea.value = val.slice(0, start) + prefix + selected + suffix + val.slice(end);
+            const newPos = end + prefix.length + suffix.length;
+            textarea.focus();
+            textarea.setSelectionRange(newPos, newPos);
+        }
+
+        const boldBtn = document.createElement('button');
+        boldBtn.type = 'button';
+        boldBtn.textContent = '𝐁 굵게';
+        boldBtn.style.cssText = 'font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid rgba(0,0,0,0.18);background:#fff;color:#1c1a17;cursor:pointer;font-weight:700;';
+        boldBtn.addEventListener('click', () => applyMarker('**', '**'));
+
+        const markBtn = document.createElement('button');
+        markBtn.type = 'button';
+        markBtn.textContent = '🖍️ 형광펜';
+        markBtn.style.cssText = 'font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid rgba(0,0,0,0.18);background:#fff2a8;color:#1c1a17;cursor:pointer;';
+        markBtn.addEventListener('click', () => applyMarker('==', '=='));
+
+        markToolbar.appendChild(boldBtn);
+        markToolbar.appendChild(markBtn);
+
         const editRow = document.createElement('div');
         editRow.className = 'ncard-excerpt-editrow';
 
@@ -765,6 +858,7 @@ function refreshPopupList() {
 
         editRow.appendChild(cancelBtn);
         editRow.appendChild(saveBtn);
+        editWrap.appendChild(markToolbar);
         editWrap.appendChild(textarea);
         editWrap.appendChild(editRow);
 
@@ -797,7 +891,7 @@ function refreshPopupList() {
             const newText = textarea.value.trim();
             if (newText) {
                 excerptList[idx].text = newText;
-                textEl.textContent = newText;
+                textEl.innerHTML = markerToHtml(newText);
             }
             exitEdit();
         });
@@ -841,6 +935,7 @@ function openPreviewPopup(mesEl) {
         bgImage: null,       // 로드된 Image 객체 (배경 사진)
         overlayOpacity: 50,  // 사진 위 오버레이 투명도 (%)
         charName: getCharacterName(), // 카드 하단에 표시될 이름 (수정 가능)
+        markColor: null, // 형광펜 색 (null이면 기본 노랑)
     };
     // 갤러리에서 "수정"으로 들어온 경우, 저장돼 있던 스타일 값을 덮어씀
     // (옛날 카드는 style 정보가 없을 수 있으므로 undefined 값은 기본값을 유지)
@@ -1163,6 +1258,58 @@ function openPreviewPopup(mesEl) {
     });
     body.appendChild(ctrlRow('글자색', colorWrap));
 
+    // 4.5) 형광펜 색
+    const markWrap = document.createElement('div');
+    markWrap.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex:1;';
+    let _customMarkColorVal = '#ffe150';
+    function selectMarkSwatch(targetSw, colorVal) {
+        markWrap.querySelectorAll('.ncard-marksw').forEach(s => {
+            s.style.borderColor = 'transparent';
+            s.style.transform = '';
+        });
+        targetSw.style.borderColor = '#1c1a17';
+        targetSw.style.transform = 'scale(1.2)';
+        _previewState.markColor = colorVal;
+        doPreview();
+    }
+    MARK_COLORS.forEach(col => {
+        if (col.value === 'custom') {
+            const cpWrap = document.createElement('div');
+            cpWrap.className = 'ncard-marksw';
+            cpWrap.title = '커스텀 형광펜 색';
+            cpWrap.style.cssText = 'width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0;position:relative;overflow:hidden;transition:transform .12s;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);';
+            const cpInput = document.createElement('input');
+            cpInput.type = 'color';
+            cpInput.value = _customMarkColorVal;
+            cpInput.style.cssText = 'position:absolute;inset:-4px;opacity:0.001;width:calc(100%+8px);height:calc(100%+8px);cursor:pointer;border:none;padding:0;margin:0;';
+            cpInput.addEventListener('change', () => {
+                _customMarkColorVal = cpInput.value;
+                cpWrap.style.background = cpInput.value;
+                selectMarkSwatch(cpWrap, cpInput.value);
+            });
+            cpInput.addEventListener('input', () => {
+                _customMarkColorVal = cpInput.value;
+                cpWrap.style.background = cpInput.value;
+                selectMarkSwatch(cpWrap, cpInput.value);
+            });
+            cpWrap.appendChild(cpInput);
+            markWrap.appendChild(cpWrap);
+        } else {
+            const sw = document.createElement('div');
+            sw.className = 'ncard-marksw';
+            sw.title = col.label;
+            sw.style.cssText = 'width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0;transition:transform .12s;';
+            sw.style.background = col.value;
+            if (_previewState.markColor === col.value) {
+                sw.style.borderColor = '#1c1a17';
+                sw.style.transform = 'scale(1.2)';
+            }
+            sw.addEventListener('click', () => selectMarkSwatch(sw, col.value));
+            markWrap.appendChild(sw);
+        }
+    });
+    body.appendChild(ctrlRow('형광펜', markWrap));
+
     // 푸터
     const foot = document.createElement('div');
     foot.className = 'ncard-popup-foot';
@@ -1188,7 +1335,8 @@ function openPreviewPopup(mesEl) {
     document.body.appendChild(overlay);
     overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) overlay.remove(); });
 
-    function doPreview() {
+    async function doPreview() {
+        await ensureFontReady();
         const charName = _previewState.charName;
         const mesId = mesEl?.getAttribute('mesid');
         const cardData = {
@@ -1197,7 +1345,7 @@ function openPreviewPopup(mesEl) {
         };
         const url = renderCard(cardData, _previewState.theme, charName, mesId,
             _previewState.fontSize, _previewState.ratio, _previewState.textColor, _previewState.bgColor,
-            _previewState.bgImage, _previewState.overlayOpacity);
+            _previewState.bgImage, _previewState.overlayOpacity, _previewState.markColor);
         document.getElementById('ncard-prev-img').src = url;
     }
     doPreview();
@@ -1210,6 +1358,7 @@ let _editingCardId = null;
 
 async function runGenerate(mesEl) {
     try {
+        await ensureFontReady();
         const c = cfg();
         const state = _previewState || {};
         // 빈 문자열(이름 없음)도 유효한 값으로 취급 — state 자체가 없을 때만 기본 이름 사용
@@ -1234,7 +1383,8 @@ async function runGenerate(mesEl) {
             state.textColor || null,
             state.bgColor || null,
             state.bgImage || null,
-            state.overlayOpacity ?? 50
+            state.overlayOpacity ?? 50,
+            state.markColor || null
         );
 
         // 갤러리 저장/수정용 meta (스타일 옵션 전체 포함 — 나중에 수정 시 복원용)
@@ -1244,6 +1394,7 @@ async function runGenerate(mesEl) {
             style: {
                 theme: state.theme || c.theme,
                 fontSize: state.fontSize || c.font_size,
+                markColor: state.markColor || null,
                 ratio: state.ratio || c.ratio || 'landscape',
                 textColor: state.textColor || null,
                 bgColor: state.bgColor || null,
@@ -1851,6 +2002,77 @@ function drawDecoration(ctx, W, H, theme) {
 }
 
 // ── Canvas 카드 렌더링 ────────────────────────────────────
+// **볼드**, ==형광펜== 마커를 파싱해 문자 단위 토큰 배열로 변환
+// (한 글자씩 {ch, bold, mark} 형태로 만들어 줄바꿈/렌더링에 사용)
+function parseMarkerTokens(text) {
+    const tokens = [];
+    let i = 0;
+    let bold = false, mark = false;
+    while (i < text.length) {
+        if (text.startsWith('**', i)) { bold = !bold; i += 2; continue; }
+        if (text.startsWith('==', i)) { mark = !mark; i += 2; continue; }
+        tokens.push({ ch: text[i], bold, mark });
+        i++;
+    }
+    return tokens;
+}
+
+// 토큰 배열(문자+스타일)을 maxWidth 안에 들어가도록 줄바꿈.
+// 볼드 글자는 폭이 달라질 수 있어 문자별로 알맞은 폰트를 적용해 측정함.
+function wrapTokens(ctx, normalFont, boldFont, tokens, maxWidth) {
+    const lines = [];
+    let cur = [];
+    let curWidth = 0;
+    for (const t of tokens) {
+        if (t.ch === '\n') { lines.push(cur); cur = []; curWidth = 0; continue; }
+        ctx.font = t.bold ? boldFont : normalFont;
+        const w = ctx.measureText(t.ch).width;
+        if (curWidth + w > maxWidth && cur.length) {
+            lines.push(cur);
+            cur = [t];
+            curWidth = w;
+        } else {
+            cur.push(t);
+            curWidth += w;
+        }
+    }
+    lines.push(cur);
+    return lines;
+}
+
+// 토큰 한 줄을 캔버스에 그림 (볼드/형광펜 스타일 반영), 그린 폭을 반환
+function drawTokenLine(ctx, tokens, x, y, normalFont, boldFont, markColor) {
+    let cx = x;
+    let i = 0;
+    while (i < tokens.length) {
+        const t = tokens[i];
+        // 같은 스타일이 이어지는 구간을 묶어서 한 번에 측정/그리기 (성능 + 자간 정확도)
+        let j = i + 1;
+        while (j < tokens.length && tokens[j].bold === t.bold && tokens[j].mark === t.mark) j++;
+        const run = tokens.slice(i, j).map(tk => tk.ch).join('');
+        ctx.font = t.bold ? boldFont : normalFont;
+        const runWidth = ctx.measureText(run).width;
+
+        if (t.mark) {
+            const metrics = ctx.measureText(run);
+            const ascent = metrics.actualBoundingBoxAscent || parseInt(ctx.font, 10) * 0.8;
+            const descent = metrics.actualBoundingBoxDescent || parseInt(ctx.font, 10) * 0.25;
+            ctx.save();
+            ctx.fillStyle = markColor;
+            ctx.fillRect(cx - 1, y - ascent - 1, runWidth + 2, ascent + descent + 2);
+            ctx.restore();
+        }
+
+        const prevFill = ctx.fillStyle;
+        ctx.fillText(run, cx, y);
+        ctx.fillStyle = prevFill;
+
+        cx += runWidth;
+        i = j;
+    }
+    return cx - x;
+}
+
 function wrapText(ctx, text, maxWidth) {
     const result = [];
     // 줄바꿈 문자 기준으로 먼저 분리 (드래그 발췌 시 엔터 보존)
@@ -1897,7 +2119,7 @@ function drawCoverImage(ctx, img, W, H) {
     ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
 }
 
-function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, ratioKey = 'landscape', textColorOverride = null, bgColorOverride = null, bgImage = null, overlayOpacity = 50) {
+function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, ratioKey = 'landscape', textColorOverride = null, bgColorOverride = null, bgImage = null, overlayOpacity = 50, markColorOverride = null) {
     const theme = THEMES.find(t => t.value === themeKey) || THEMES[0];
     const ratioConf = RATIOS.find(r => r.value === ratioKey) || RATIOS[0];
     const W = ratioConf.w;
@@ -1915,9 +2137,10 @@ function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, rati
     function computeBlocks(s) {
         const narrPx  = Math.round(13 * s);
         const font    = `${narrPx}px Georgia, "Noto Serif KR", serif`;
-        mctx.font = font;
+        const boldFont = `bold ${narrPx}px Georgia, "Noto Serif KR", serif`;
         return cardData.lines.map(line => {
-            const wrapped = wrapText(mctx, line.text, maxTextWidth);
+            const tokens = parseMarkerTokens(line.text);
+            const wrapped = wrapTokens(mctx, font, boldFont, tokens, maxTextWidth);
             return { wrapped, lineHeight: Math.round(26 * s), gap: Math.round(20 * s) };
         });
     }
@@ -1943,8 +2166,10 @@ function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, rati
     const baseMeta = Math.round(11 * scale);
 
     const FONT_NARR  = `${baseNarr}px Georgia, "Noto Serif KR", serif`;
+    const FONT_NARR_BOLD = `bold ${baseNarr}px Georgia, "Noto Serif KR", serif`;
     const FONT_QUOTE = `bold ${baseQuote}px Georgia, "Noto Serif KR", serif`;
     const FONT_META  = `${baseMeta}px Georgia, "Noto Serif KR", serif`;
+    const MARK_COLOR = hexToRgba(markColorOverride || '#ffe150', 0.55);
 
     const canvas = document.createElement('canvas');
     canvas.width = W * 2;
@@ -1970,10 +2195,9 @@ function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, rati
     ctx.textBaseline = 'alphabetic';
 
     blocks.forEach((b, i) => {
-        ctx.font = FONT_NARR;
         ctx.fillStyle = textColorOverride || theme.text;
-        b.wrapped.forEach(line => {
-            ctx.fillText(line, PAD_X, y + b.lineHeight * 0.75);
+        b.wrapped.forEach(tokenLine => {
+            drawTokenLine(ctx, tokenLine, PAD_X, y + b.lineHeight * 0.75, FONT_NARR, FONT_NARR_BOLD, MARK_COLOR);
             y += b.lineHeight;
         });
         if (i < blocks.length - 1) y += b.gap;
@@ -2156,6 +2380,7 @@ async function startEditCard(c) {
         overlayOpacity: style.overlayOpacity ?? 50,
         bgImage,
         charName: cardData.speaker || c.charName || '',
+        markColor: style.markColor ?? null,
     };
 
     // 3) 이 카드를 새로 저장하지 않고 덮어쓰도록 표시
@@ -2495,6 +2720,7 @@ async function migrateOldIndexedDbGallery() {
 jQuery(async () => {
     injectStyles();
     ensureFallbackStyles();
+    ensureFontReady(); // 미리 로딩 시작 (완료 대기는 실제 렌더링 시점에)
 
     $('#extensions_settings2').append(buildSettingsHtml());
     bindSettingsEvents();
