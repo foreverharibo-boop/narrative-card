@@ -555,6 +555,12 @@ const MARK_COLORS = [
     { label: '보라',   value: '#c9a8ff' },
     { label: '오렌지', value: '#ffb060' },
     { label: '민트',   value: '#7ee8c8' },
+    { label: '파스텔 레몬', value: '#fdf3b0' },
+    { label: '파스텔 로즈', value: '#f6c9d4' },
+    { label: '파스텔 라벤더', value: '#dccdf0' },
+    { label: '파스텔 세이지', value: '#c9e3c4' },
+    { label: '파스텔 피치', value: '#f8d6b8' },
+    { label: '파스텔 스카이', value: '#c2e0f4' },
     { label: '커스텀', value: 'custom' },
 ];
 
