@@ -1475,10 +1475,7 @@ function openResultPopup(dataUrl, savedId) {
     btnDl.className = 'ncard-btn-gen';
     btnDl.textContent = '💾 이미지 저장';
     btnDl.addEventListener('click', () => {
-        const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = 'narrative_card_' + Date.now() + '.png';
-        a.click();
+        downloadCardImage(dataUrl, 'narrative_card_' + Date.now() + '.png');
     });
 
     foot.appendChild(btnDel);
@@ -2125,6 +2122,42 @@ function drawCoverImage(ctx, img, W, H) {
     ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
 }
 
+// 이미지(dataURL)를 파일로 저장. data: URL을 직접 href로 쓰는 방식은
+// 삼성인터넷(특히 PWA 홈화면 모드)에서 간헐적으로 무시되는 경우가 있어서,
+// Blob + ObjectURL 방식으로 바꾸고 DOM에 붙였다가 클릭 후 제거하도록 함.
+function downloadCardImage(dataUrl, filename) {
+    try {
+        const parts = dataUrl.split(',');
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+        const binary = atob(parts[1]);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: mime });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 1000);
+    } catch (e) {
+        console.warn('[NarrativeCard] Blob 다운로드 실패, data URL 방식으로 재시도:', e);
+        // 폴백: 예전 방식
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+}
+
 function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, ratioKey = 'landscape', textColorOverride = null, bgColorOverride = null, bgImage = null, overlayOpacity = 50, markColorOverride = null) {
     const theme = THEMES.find(t => t.value === themeKey) || THEMES[0];
     const ratioConf = RATIOS.find(r => r.value === ratioKey) || RATIOS[0];
@@ -2338,10 +2371,7 @@ function openCardViewer(dataUrl) {
     dlBtn.style.cssText = 'padding:10px 32px;border:none;border-radius:20px;background:#d4a017;color:#1c1a17;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.5);flex-shrink:0;';
     dlBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = 'narrative_card_' + Date.now() + '.png';
-        a.click();
+        downloadCardImage(dataUrl, 'narrative_card_' + Date.now() + '.png');
     });
 
     inner.appendChild(closeBtn);
@@ -2490,10 +2520,7 @@ async function openGallery() {
             btnDl.textContent = '💾 저장';
             btnDl.style.cssText = 'flex:1;padding:4px 0;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;background:#d4a017;color:#1c1a17;';
             btnDl.addEventListener('click', () => {
-                const a = document.createElement('a');
-                a.href = c.dataUrl;
-                a.download = 'narrative_card_' + (c.createdAt || Date.now()) + '.png';
-                a.click();
+                downloadCardImage(c.dataUrl, 'narrative_card_' + (c.createdAt || Date.now()) + '.png');
             });
 
             const btnDel = document.createElement('button');
