@@ -519,6 +519,11 @@ const THEMES = [
     // 귀여운 신규 테마
     { value: 'cloud_pop',   label: '☁️ 구름팝',          bg: '#eaf3ff', text: '#2e4a68', sub: 'rgba(46,74,104,0.6)', line: 'rgba(46,74,104,0.2)', meta: 'rgba(46,74,104,0.45)', accent: '#ffffff', accent2: '#ffffff', deco: 'clouds_pretty' },
     { value: 'lemon_soda',  label: '🍋 레몬소다',        bg: '#fff8dc', text: '#6a5a10', sub: 'rgba(106,90,16,0.6)', line: 'rgba(106,90,16,0.2)', meta: 'rgba(106,90,16,0.45)', accent: '#f0d868', deco: 'bubbles_big' },
+    // 호그와트 기숙사 테마
+    { value: 'gryffindor', label: '🦁 그리핀도르', bg: '#2b0e12', text: '#f0dcae', sub: 'rgba(240,220,174,0.6)', line: 'rgba(240,220,174,0.2)', meta: 'rgba(240,220,174,0.55)', accent: '#d4af37', accent2: '#7f0e17', deco: 'house' },
+    { value: 'slytherin',  label: '🐍 슬리데린',   bg: '#0d1f1a', text: '#d8e8de', sub: 'rgba(216,232,222,0.55)', line: 'rgba(216,232,222,0.2)', meta: 'rgba(216,232,222,0.5)', accent: '#c0c0c0', accent2: '#1a5c3a', deco: 'house' },
+    { value: 'ravenclaw',  label: '🦅 래번클로',   bg: '#0c1524', text: '#dde6f0', sub: 'rgba(221,230,240,0.55)', line: 'rgba(221,230,240,0.2)', meta: 'rgba(221,230,240,0.5)', accent: '#946f42', accent2: '#1e3a63', deco: 'house' },
+    { value: 'hufflepuff', label: '🦡 후플푸프',   bg: '#1c1808', text: '#f3e6b8', sub: 'rgba(243,230,184,0.6)', line: 'rgba(243,230,184,0.2)', meta: 'rgba(243,230,184,0.55)', accent: '#f0c14b', accent2: '#2b2410', deco: 'house' },
 ];
 
 
@@ -1965,6 +1970,38 @@ function drawDecoration(ctx, W, H, theme) {
             ctx.beginPath(); ctx.arc(x - r * 0.35, y - r * 0.35, r * 0.18, 0, Math.PI * 2); ctx.fill();
         }
 
+    } else if (theme.deco === 'house') {
+        // ── 호그와트 기숙사: 이중 컬러 밴드 라인 + 코너 문장(紋章) 다이아몬드 ──
+        ctx.save();
+        ctx.strokeStyle = theme.accent;
+        ctx.globalAlpha = 0.8;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, 8); ctx.lineTo(W, 8); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, H - 8); ctx.lineTo(W, H - 8); ctx.stroke();
+
+        ctx.strokeStyle = theme.accent2 || theme.accent;
+        ctx.globalAlpha = 0.6;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(14, 16); ctx.lineTo(W - 14, 16); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(14, H - 16); ctx.lineTo(W - 14, H - 16); ctx.stroke();
+
+        const drawDiamond = (x, y, s) => {
+            ctx.globalAlpha = 0.9;
+            ctx.fillStyle = theme.accent;
+            ctx.beginPath();
+            ctx.moveTo(x, y - s); ctx.lineTo(x + s, y); ctx.lineTo(x, y + s); ctx.lineTo(x - s, y);
+            ctx.closePath(); ctx.fill();
+            ctx.fillStyle = theme.accent2 || theme.accent;
+            ctx.beginPath();
+            ctx.arc(x, y, s * 0.35, 0, Math.PI * 2);
+            ctx.fill();
+        };
+        drawDiamond(30, 30, 7);
+        drawDiamond(W - 30, 30, 7);
+        drawDiamond(30, H - 30, 7);
+        drawDiamond(W - 30, H - 30, 7);
+        ctx.restore();
+
     } else if (theme.deco === 'soap_bubble') {
         // ── 비눗방울: 흰+하늘색 그라디언트 + 반투명 버블 ──
         const grd = ctx.createLinearGradient(0, 0, W * 0.5, H);
@@ -2243,7 +2280,8 @@ function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, rati
     });
 
     ctx.font = FONT_META;
-    ctx.fillStyle = theme.meta;
+    // 사용자가 글자색을 직접 골랐으면 이름/장소 텍스트도 같은 색으로 (테마 기본색보다 우선)
+    ctx.fillStyle = textColorOverride || theme.meta;
     const metaLeft = [charName, cardData.location].filter(Boolean).join(' · ');
     ctx.textAlign = 'left';
     ctx.fillText(metaLeft, PAD_X, H - 32);
