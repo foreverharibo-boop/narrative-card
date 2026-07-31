@@ -839,6 +839,12 @@ function refreshPopupList() {
             const newPos = end + prefix.length + suffix.length;
             textarea.focus();
             textarea.setSelectionRange(newPos, newPos);
+            // 버튼 클릭으로 값을 바꾼 경우 input 이벤트가 자동으로 안 붙으니 직접 반영
+            const newText = textarea.value.trim();
+            if (newText) {
+                excerptList[idx].text = newText;
+                textEl.innerHTML = markerToHtml(newText);
+            }
         }
 
         const boldBtn = document.createElement('button');
@@ -859,16 +865,11 @@ function refreshPopupList() {
         const editRow = document.createElement('div');
         editRow.className = 'ncard-excerpt-editrow';
 
-        const cancelBtn = document.createElement('button');
-        cancelBtn.className = 'ncard-excerpt-cancel';
-        cancelBtn.textContent = '취소';
+        const doneBtn = document.createElement('button');
+        doneBtn.className = 'ncard-excerpt-save';
+        doneBtn.textContent = '완료';
 
-        const saveBtn = document.createElement('button');
-        saveBtn.className = 'ncard-excerpt-save';
-        saveBtn.textContent = '저장';
-
-        editRow.appendChild(cancelBtn);
-        editRow.appendChild(saveBtn);
+        editRow.appendChild(doneBtn);
         editWrap.appendChild(markToolbar);
         editWrap.appendChild(textarea);
         editWrap.appendChild(editRow);
@@ -893,27 +894,24 @@ function refreshPopupList() {
 
         editBtn.addEventListener('click', enterEdit);
 
-        cancelBtn.addEventListener('click', () => {
-            textarea.value = item.text; // 원래 텍스트로 복원
-            exitEdit();
-        });
-
-        saveBtn.addEventListener('click', () => {
+        // 자동저장: 입력할 때마다 바로 excerptList에 반영 (저장 깜빡할 일 없음)
+        textarea.addEventListener('input', () => {
             const newText = textarea.value.trim();
             if (newText) {
                 excerptList[idx].text = newText;
                 textEl.innerHTML = markerToHtml(newText);
             }
-            exitEdit();
         });
 
-        // Ctrl+Enter / Cmd+Enter 로 저장
+        doneBtn.addEventListener('click', exitEdit);
+
+        // Ctrl+Enter / Cmd+Enter 로 완료, Esc로도 완료 (자동저장이라 취소 개념이 없음)
         textarea.addEventListener('keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                 e.preventDefault();
-                saveBtn.click();
+                doneBtn.click();
             } else if (e.key === 'Escape') {
-                cancelBtn.click();
+                doneBtn.click();
             }
         });
 
