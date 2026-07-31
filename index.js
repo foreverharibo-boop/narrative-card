@@ -969,11 +969,33 @@ function openPreviewPopup(mesEl) {
     const head = document.createElement('div');
     head.className = 'ncard-popup-head';
     head.innerHTML = '<div class="ncard-popup-title">🎨 카드 옵션 &amp; 미리보기</div>';
+
+    const hIcons = document.createElement('div');
+    hIcons.style.cssText = 'display:flex;align-items:center;gap:10px;';
+
+    const hBack = document.createElement('span');
+    hBack.className = 'ncard-popup-close';
+    hBack.innerHTML = '←';
+    hBack.title = '발췌 편집으로 돌아가기';
+    const goBack = (e) => {
+        e.preventDefault();
+        // 지금까지 고른 스타일 값을 보존해뒀다가, 발췌 편집을 마치고
+        // "카드 만들기"로 다시 들어오면 그대로 복원되게 함
+        _pendingEditMeta = { ..._previewState };
+        overlay.remove();
+        openExcerptPopup(mesEl);
+    };
+    hBack.addEventListener('click', goBack);
+    hBack.addEventListener('touchend', goBack);
+    hIcons.appendChild(hBack);
+
     const hClose = document.createElement('span');
     hClose.className = 'ncard-popup-close';
     hClose.innerHTML = '&times;';
     hClose.addEventListener('click', () => overlay.remove());
-    head.appendChild(hClose);
+    hIcons.appendChild(hClose);
+
+    head.appendChild(hIcons);
 
     // 미리보기 이미지
     const prevWrap = document.createElement('div');
