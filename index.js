@@ -103,15 +103,26 @@ function detectInstalledFonts() {
 // 않은 경우가 많아, CSS에 폰트명을 지정해도 기기에 따라 다른(주로 산세리프)
 // 폰트로 렌더링되는 문제가 있음. Google Fonts를 통해 웹폰트를 직접 불러와서
 // 항상 동일한 서체가 나오도록 고정함. 사용자가 고른 폰트를 그때그때 로드.
-const _fontLoadPromises = {}; // fontValue -> Promise
-function ensureFontReady(fontValue = 'noto_serif') {
-    if (_fontLoadPromises[fontValue]) return _fontLoadPromises[fontValue];
+//
+// 중요: 구글 폰트의 한글 폰트는 대부분 유니코드 범위별로 수십 개 파일로
+// 쪼개져 제공됨(서브셋). document.fonts.load(font)만 호출하면 브라우저가
+// "기본" 서브셋 정도만 받아오고, 실제 카드 텍스트에 쓰인 글자가 다른
+// 서브셋에 속해 있으면 그 글자만 로드가 안 된 채로 남아있다가 캔버스에
+// 그릴 때 시스템 폰트로 대체되어 버림 (일부 단어만 다른 폰트로 보이는
+// 원인). 이를 막기 위해 실제 사용될 텍스트를 함께 넘겨서 그 글자가
+// 포함된 서브셋을 정확히 짚어 로드하도록 함.
+const _fontLoadPromises = {}; // 캐시 키 -> Promise
+function ensureFontReady(fontValue = 'noto_serif', sampleText = '') {
+    const cacheKey = fontValue + '::' + sampleText;
+    if (_fontLoadPromises[cacheKey]) return _fontLoadPromises[cacheKey];
 
     const def = getFontDef(fontValue);
-    _fontLoadPromises[fontValue] = (async () => {
+    const linkCacheKey = 'link::' + fontValue;
+    _fontLoadPromises[cacheKey] = (async () => {
         try {
             // 커스텀(ST에 이미 등록된) 폰트는 별도로 불러올 필요 없음 — 이미 로드돼 있음
-            if (!def.isCustom) {
+            if (!def.isCustom && !_fontLoadPromises[linkCacheKey]) {
+                _fontLoadPromises[linkCacheKey] = true;
                 const linkId = 'ncard-webfont-link-' + fontValue;
                 if (!document.getElementById(linkId)) {
                     if (def.inlineCss) {
@@ -130,27 +141,29 @@ function ensureFontReady(fontValue = 'noto_serif') {
                     }
                 }
             }
+
+            // 실제로 쓰일 글자들 + 기본 한/영/숫자 샘플을 합쳐서 필요한 서브셋을 확실히 로드
+            const baseSample = '가나다라마바사자차카타파하는은이가를을 ABC123';
+            const textForLoad = (sampleText ? sampleText + ' ' : '') + baseSample;
+
             if (document.fonts && document.fonts.load) {
                 await Promise.all([
-                    document.fonts.load(`16px ${def.family}`),
-                    document.fonts.load(`bold 16px ${def.family}`),
+                    document.fonts.load(`16px ${def.family}`, textForLoad),
+                    document.fonts.load(`bold 16px ${def.family}`, textForLoad),
                 ]);
             }
-            // 폰트 로드가 "끝났다"는 신호를 받아도, 실제로 그 글자들을 그릴 준비
-            // (글리프 래스터라이즈)까지는 아주 짧게 지연되는 기기가 있음 — 특히
-            // 한글처럼 글자 수가 많은 폰트 + 모바일 브라우저에서 이 레이스로 인해
-            // 처음 렌더링할 때만 일부 글자가 시스템 폰트/다른 굵기로 섞여 보임.
-            // 보이지 않는 캔버스에 미리 한 번 그려서 강제로 준비시켜둠.
+
+            // 로드 완료 신호 이후에도 실제 래스터라이즈까지 아주 짧게 지연되는
+            // 기기가 있어, 보이지 않는 캔버스에 실제 텍스트로 한 번 미리 그려
+            // 강제로 준비시켜둠.
             try {
                 const warm = document.createElement('canvas');
-                warm.width = 300; warm.height = 60;
+                warm.width = 10; warm.height = 10;
                 const wctx = warm.getContext('2d');
-                const sample = '가나다라마바사자차카타파하는은이가를을 ABC123';
                 wctx.font = `16px ${def.family}`;
-                wctx.fillText(sample, 0, 20);
+                wctx.fillText(textForLoad, 0, 8);
                 wctx.font = `bold 16px ${def.family}`;
-                wctx.fillText(sample, 0, 45);
-                // 폰트가 완전히 준비될 시간을 아주 살짝 더 줌 (다음 페인트 프레임까지)
+                wctx.fillText(textForLoad, 0, 8);
                 await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
             } catch (_) { /* 워밍업 실패해도 치명적이지 않으니 무시 */ }
         } catch (e) {
@@ -158,7 +171,7 @@ function ensureFontReady(fontValue = 'noto_serif') {
         }
     })();
 
-    return _fontLoadPromises[fontValue];
+    return _fontLoadPromises[cacheKey];
 }
 
 // ── CSS 주입 ──────────────────────────────────────────────
@@ -772,7 +785,14 @@ function showAddBtn(x, y, selectedText, mesEl) {
         e.stopPropagation();
         removeAddBtn();
         // 발췌 추가 (중복 방지)
-        const trimmed = selectedText.trim();
+        // 채팅 원문에 이미 있던 마크다운 강조(**굵게**, __밑줄__ 등)를 그대로 두면
+        // 우리 카드의 굵게/형광펜 마커(**, ==)와 겹쳐서 의도치 않은 부분이
+        // 제멋대로 굵게 나오는 문제가 생기므로, 발췌해올 때 미리 벗겨냄.
+        let cleaned = selectedText
+            .replace(/\*\*(.+?)\*\*/g, '$1')   // **굵게** → 굵게
+            .replace(/__(.+?)__/g, '$1')       // __굵게__ → 굵게
+            .replace(/==(.+?)==/g, '$1');      // ==형광펜== → 형광펜
+        const trimmed = cleaned.trim();
         if (!excerptList.some(item => item.text === trimmed)) {
             excerptList.push({ text: trimmed });
         }
@@ -1558,8 +1578,9 @@ function openPreviewPopup(mesEl) {
     overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) overlay.remove(); });
 
     async function doPreview() {
-        await ensureFontReady(_previewState.fontFamily);
         const charName = _previewState.charName;
+        const fullText = excerptList.map(item => item.text).join(' ') + ' ' + (charName || '');
+        await ensureFontReady(_previewState.fontFamily, fullText);
         const mesId = mesEl?.getAttribute('mesid');
         const cardData = {
             speaker: charName, location: '',
@@ -1582,11 +1603,12 @@ async function runGenerate(mesEl) {
     try {
         const c = cfg();
         const state = _previewState || {};
-        await ensureFontReady(state.fontFamily || 'noto_serif');
         // 빈 문자열(이름 없음)도 유효한 값으로 취급 — state 자체가 없을 때만 기본 이름 사용
         const charName = (state.charName !== undefined && state.charName !== null)
             ? state.charName
             : getCharacterName();
+        const fullText = excerptList.map(item => item.text).join(' ') + ' ' + (charName || '');
+        await ensureFontReady(state.fontFamily || 'noto_serif', fullText);
         const mesId = mesEl?.getAttribute('mesid');
 
         const cardData = {
