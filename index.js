@@ -136,6 +136,23 @@ function ensureFontReady(fontValue = 'noto_serif') {
                     document.fonts.load(`bold 16px ${def.family}`),
                 ]);
             }
+            // 폰트 로드가 "끝났다"는 신호를 받아도, 실제로 그 글자들을 그릴 준비
+            // (글리프 래스터라이즈)까지는 아주 짧게 지연되는 기기가 있음 — 특히
+            // 한글처럼 글자 수가 많은 폰트 + 모바일 브라우저에서 이 레이스로 인해
+            // 처음 렌더링할 때만 일부 글자가 시스템 폰트/다른 굵기로 섞여 보임.
+            // 보이지 않는 캔버스에 미리 한 번 그려서 강제로 준비시켜둠.
+            try {
+                const warm = document.createElement('canvas');
+                warm.width = 300; warm.height = 60;
+                const wctx = warm.getContext('2d');
+                const sample = '가나다라마바사자차카타파하는은이가를을 ABC123';
+                wctx.font = `16px ${def.family}`;
+                wctx.fillText(sample, 0, 20);
+                wctx.font = `bold 16px ${def.family}`;
+                wctx.fillText(sample, 0, 45);
+                // 폰트가 완전히 준비될 시간을 아주 살짝 더 줌 (다음 페인트 프레임까지)
+                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+            } catch (_) { /* 워밍업 실패해도 치명적이지 않으니 무시 */ }
         } catch (e) {
             console.warn('[NarrativeCard] 웹폰트 로드 실패 (시스템 기본 폰트로 표시됨):', e);
         }
@@ -1200,18 +1217,6 @@ function openPreviewPopup(mesEl) {
     CARD_FONTS.forEach(f => {
         fontDropdown.appendChild(fontOptionRow(f.value, f.label, f.family, false));
     });
-
-    const installedFonts = detectInstalledFonts();
-    if (installedFonts.length > 0) {
-        const customGroupLabel = document.createElement('div');
-        customGroupLabel.textContent = 'ST에 설치된 폰트';
-        customGroupLabel.style.cssText = 'padding:6px 12px;font-size:10px;color:rgba(0,0,0,0.4);font-weight:700;background:#f7f4ec;';
-        fontDropdown.appendChild(customGroupLabel);
-        installedFonts.forEach(name => {
-            const val = 'custom:' + name;
-            fontDropdown.appendChild(fontOptionRow(val, name, `"${name}"`, true));
-        });
-    }
 
     function updateFontButton() {
         const def = getFontDef(_previewState.fontFamily);
