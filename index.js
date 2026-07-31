@@ -6,28 +6,134 @@
 import { getContext, extension_settings } from '../../../extensions.js';
 import { saveSettingsDebounced } from '../../../../script.js';
 
+// ── 선택 가능한 폰트 목록 ────────────────────────────────
+// 각 항목의 family는 실제 CSS/canvas font-family 값,
+// google은 Google Fonts CSS2 API에 넘길 family 파라미터(공백 → +).
+const CARD_FONTS = [
+    { value: 'noto_serif', label: '📜 명조 (기본)', family: '"Noto Serif KR"', google: 'Noto+Serif+KR:wght@400;700' },
+    { value: 'noto_sans',  label: '🅰️ 고딕 (깔끔)', family: '"Noto Sans KR"',  google: 'Noto+Sans+KR:wght@400;700' },
+    { value: 'gowun',      label: '🖋️ 고운돋움 (부드러운 고딕)', family: '"Gowun Dodum"', google: 'Gowun+Dodum' },
+    { value: 'myeongjo',   label: '🏛️ 나눔명조 (클래식)', family: '"Nanum Myeongjo"', google: 'Nanum+Myeongjo:wght@400;700' },
+    { value: 'gaegu',      label: '✏️ 개구체 (손글씨)', family: '"Gaegu"', google: 'Gaegu:wght@400;700' },
+    { value: 'gamja',      label: '🥔 감자꽃 (손글씨 굵게)', family: '"Gamja Flower"', google: 'Gamja+Flower' },
+    { value: 'hakgyo',     label: '🎒 학교안심 (동글동글)', family: '"Hakgyoansim Dunggeunmiso TTF"', google: 'Hakgyoansim+Dunggeunmiso+TTF' },
+    { value: 'songmyung',  label: '🏺 송명체 (고전 세리프)', family: '"Song Myung"', google: 'Song+Myung' },
+    { value: 'blackhan',   label: '💥 블랙한산스 (임팩트 굵은고딕)', family: '"Black Han Sans"', google: 'Black+Han+Sans' },
+    { value: 'jua',        label: '🐥 주아체 (동글귀염)', family: '"Jua"', google: 'Jua' },
+    { value: 'dohyeon',    label: '📢 도현체 (포스터 볼드)', family: '"Do Hyeon"', google: 'Do+Hyeon' },
+    { value: 'poorstory',  label: '💌 푸어스토리 (감성 손글씨)', family: '"Poor Story"', google: 'Poor+Story' },
+    { value: 'stylish',    label: '🧊 스타일리쉬 (모던 고딕)', family: '"Stylish"', google: 'Stylish' },
+    { value: 'dokdo',      label: '🖌️ 동해독도체 (개성있는 손글씨)', family: '"East Sea Dokdo"', google: 'East+Sea+Dokdo' },
+    // 구글폰트가 아닌 별도 CDN 폰트
+    { value: 'pretendard', label: '💠 프리텐다드 (모던 산세리프)', family: '"Pretendard"',
+      cssUrl: 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css' },
+    { value: 'ridibatang', label: '📖 리디바탕 (전자책 가독성)', family: '"Ridibatang"',
+      inlineCss: `@font-face { font-family: 'Ridibatang'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_twelve@1.0/RIDIBatang.woff') format('woff'); font-weight: normal; font-display: swap; }` },
+    // 눈누 폰트 추가분
+    { value: 'paperlogy', label: '📄 페이퍼로지 (모던 고딕)', family: '"Paperlogy"',
+      inlineCss: `@font-face { font-family: 'Paperlogy'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-4Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }` },
+    { value: 'gmarketsans', label: '🛒 G마켓 산스 (둥근 굵은고딕)', family: '"GMarketSans"',
+      inlineCss: `@font-face { font-family: 'GMarketSans'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansMedium.woff') format('woff'); font-weight: 500; font-display: swap; }` },
+    { value: 'escoredream', label: '🌙 에스코어드림 (부드러운 고딕)', family: '"Escoredream"',
+      inlineCss: `@font-face { font-family: 'Escoredream'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-4Regular.woff') format('woff'); font-weight: normal; font-display: swap; }` },
+    { value: 'suit',       label: '🧥 수트 (심플 UI 고딕)', family: '"Suit"',
+      inlineCss: `@font-face { font-family: 'Suit'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_suit@1.0/SUIT-Regular.woff2') format('woff2'); font-weight: normal; font-display: swap; }` },
+    { value: 'sweet',      label: '🍬 스위트 (헤드라인 고딕)', family: '"Sweet"',
+      inlineCss: `@font-face { font-family: 'Sweet'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2304-2@1.0/SUITE-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }` },
+    { value: 'bookk',      label: '📚 부크크명조 (전자책 명조)', family: '"BookkMyungjo"',
+      inlineCss: `@font-face { font-family: 'BookkMyungjo'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2302@1.0/BookkMyungjo-Lt.woff2') format('woff2'); font-weight: 400; font-display: swap; }` },
+    { value: 'maruburi',   label: '🌳 마루부리 (네이버 명조)', family: '"Maru Buri"',
+      cssUrl: 'https://cdn.jsdelivr.net/gh/fonts-archive/MaruBuri/MaruBuri.css' },
+    { value: 'dangam',     label: '🍊 창원단감둥근체 (귀여운 둥근고딕)', family: '"ChangwonDangamRounded"',
+      inlineCss: `@font-face { font-family: 'ChangwonDangamRounded'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2511-1@1.0/ChangwonDangamRound-Regular.woff2') format('woff2'); font-weight: normal; font-display: swap; }` },
+    { value: 'mona12',     label: '👾 Mona12 (레트로 픽셀)', family: '"Mona12"',
+      cssUrl: 'https://cdn.jsdelivr.net/gh/MonadABXY/mona-font/web/mona.css' },
+    { value: 'jalharu',    label: '🍀 잘풀리는하루체 (친근한 손글씨)', family: '"JalpulrineunHaruche"',
+      inlineCss: `@font-face { font-family: 'JalpulrineunHaruche'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-10-21@1.0/Jal_Haru.woff') format('woff'); font-weight: normal; font-display: swap; }` },
+    { value: 'gothica1',   label: '🅶 고딕 A1 (다국어 고딕)', family: '"Gothic A1"', google: 'Gothic+A1:wght@400;700' },
+    { value: 'gowunbatang', label: '🍂 고운바탕 (부드러운 명조)', family: '"Gowun Batang"', google: 'Gowun+Batang:wght@400;700' },
+    { value: 'montserrat', label: '🔠 몬세라트 (영문 지오메트릭)', family: '"Montserrat"', google: 'Montserrat:wght@400;700' },
+    { value: 'yesgothic',  label: '📗 예스고딕 (단정한 고딕)', family: '"YesGothic"',
+      inlineCss: `@font-face { font-family: 'YesGothic'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_13@1.0/YESGothic-Regular.woff') format('woff'); font-weight: normal; font-display: swap; } @font-face { font-family: 'YesGothic'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_13@1.0/YESGothic-Bold.woff') format('woff'); font-weight: 700; font-display: swap; }` },
+];
+function getFontDef(value) {
+    // ST 안에 이미 등록돼 있는(다른 폰트 확장 등이 @font-face로 넣어둔) 폰트는
+    // 'custom:실제폰트이름' 형태로 저장 — 구글폰트 로딩 없이 그대로 씀
+    if (value && value.startsWith('custom:')) {
+        const family = value.slice('custom:'.length);
+        return { value, label: family, family: `"${family}"`, google: null, isCustom: true };
+    }
+    return CARD_FONTS.find(f => f.value === value) || CARD_FONTS[0];
+}
+
+// document.fonts(브라우저에 이미 로드/등록된 폰트 목록)를 스캔해서
+// 다른 확장이 넣어둔 커스텀 폰트 패밀리 이름들을 찾아냄.
+// 시스템 기본/일반 제네릭 폰트는 목록에서 제외.
+function detectInstalledFonts() {
+    const skip = new Set([
+        'sans-serif', 'serif', 'monospace', 'cursive', 'fantasy', 'system-ui',
+        'Arial', 'Helvetica', 'Times New Roman', 'Times', 'Courier New', 'Courier',
+        'Georgia', 'Verdana', 'Tahoma', 'Segoe UI', 'Roboto', '-apple-system',
+        'Noto Serif KR', 'Noto Sans KR', 'Gowun Dodum', 'Nanum Myeongjo', 'Gaegu',
+        'Gamja Flower', 'Hakgyoansim Dunggeunmiso TTF', 'Song Myung', 'Black Han Sans',
+        'Jua', 'Do Hyeon', 'Poor Story', 'Stylish', 'East Sea Dokdo',
+        'Pretendard', 'Ridibatang', 'Paperlogy', 'GMarketSans', 'Escoredream', 'Suit',
+        'Sweet', 'BookkMyungjo', 'Maru Buri', 'ChangwonDangamRounded', 'Mona12',
+        'JalpulrineunHaruche', 'Gothic A1', 'Gowun Batang', 'Montserrat', 'YesGothic',
+        'FontAwesome', 'Font Awesome 5 Free', 'Font Awesome 6 Free', 'Font Awesome 6 Pro',
+    ]);
+    const found = new Set();
+    try {
+        if (document.fonts && document.fonts.forEach) {
+            document.fonts.forEach(f => {
+                const name = (f.family || '').replace(/^["']|["']$/g, '').trim();
+                if (name && !skip.has(name) && !name.toLowerCase().includes('font awesome')) {
+                    found.add(name);
+                }
+            });
+        }
+    } catch (e) {
+        console.warn('[NarrativeCard] 커스텀 폰트 감지 실패:', e);
+    }
+    return Array.from(found);
+}
+
 // ── 웹폰트 강제 로드 (기기별 시스템 폰트 차이 방지) ─────────
 // 안드로이드/iOS 모두 한글 세리프(명조체) 시스템 폰트가 기본 설치돼 있지
-// 않은 경우가 많아, CSS에 'Noto Serif KR'을 지정해도 기기에 따라 다른
-// (주로 산세리프) 폰트로 렌더링되는 문제가 있음. Google Fonts를 통해
-// 웹폰트를 직접 불러와서 항상 동일한 서체가 나오도록 고정함.
-let _fontLoadPromise = null;
-function ensureFontReady() {
-    if (_fontLoadPromise) return _fontLoadPromise;
+// 않은 경우가 많아, CSS에 폰트명을 지정해도 기기에 따라 다른(주로 산세리프)
+// 폰트로 렌더링되는 문제가 있음. Google Fonts를 통해 웹폰트를 직접 불러와서
+// 항상 동일한 서체가 나오도록 고정함. 사용자가 고른 폰트를 그때그때 로드.
+const _fontLoadPromises = {}; // fontValue -> Promise
+function ensureFontReady(fontValue = 'noto_serif') {
+    if (_fontLoadPromises[fontValue]) return _fontLoadPromises[fontValue];
 
-    _fontLoadPromise = (async () => {
+    const def = getFontDef(fontValue);
+    _fontLoadPromises[fontValue] = (async () => {
         try {
-            if (!document.getElementById('ncard-webfont-link')) {
-                const link = document.createElement('link');
-                link.id = 'ncard-webfont-link';
-                link.rel = 'stylesheet';
-                link.href = 'https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&display=swap';
-                document.head.appendChild(link);
+            // 커스텀(ST에 이미 등록된) 폰트는 별도로 불러올 필요 없음 — 이미 로드돼 있음
+            if (!def.isCustom) {
+                const linkId = 'ncard-webfont-link-' + fontValue;
+                if (!document.getElementById(linkId)) {
+                    if (def.inlineCss) {
+                        // 폰트 파일 URL 하나짜리 @font-face 규칙을 직접 주입 (예: 리디바탕)
+                        const style = document.createElement('style');
+                        style.id = linkId;
+                        style.textContent = def.inlineCss;
+                        document.head.appendChild(style);
+                    } else {
+                        // 구글폰트 또는 별도 CDN이 제공하는 스타일시트 링크 (예: 프리텐다드)
+                        const link = document.createElement('link');
+                        link.id = linkId;
+                        link.rel = 'stylesheet';
+                        link.href = def.cssUrl || `https://fonts.googleapis.com/css2?family=${def.google}&display=swap`;
+                        document.head.appendChild(link);
+                    }
+                }
             }
             if (document.fonts && document.fonts.load) {
                 await Promise.all([
-                    document.fonts.load('16px "Noto Serif KR"'),
-                    document.fonts.load('bold 16px "Noto Serif KR"'),
+                    document.fonts.load(`16px ${def.family}`),
+                    document.fonts.load(`bold 16px ${def.family}`),
                 ]);
             }
         } catch (e) {
@@ -35,7 +141,7 @@ function ensureFontReady() {
         }
     })();
 
-    return _fontLoadPromise;
+    return _fontLoadPromises[fontValue];
 }
 
 // ── CSS 주입 ──────────────────────────────────────────────
@@ -945,6 +1051,7 @@ function openPreviewPopup(mesEl) {
         overlayOpacity: 50,  // 사진 위 오버레이 투명도 (%)
         charName: getCharacterName(), // 카드 하단에 표시될 이름 (수정 가능)
         markColor: null, // 형광펜 색 (null이면 기본 노랑)
+        fontFamily: c.font_family || 'noto_serif',
     };
     // 갤러리에서 "수정"으로 들어온 경우, 저장돼 있던 스타일 값을 덮어씀
     // (옛날 카드는 style 정보가 없을 수 있으므로 undefined 값은 기본값을 유지)
@@ -1045,6 +1152,85 @@ function openPreviewPopup(mesEl) {
     });
     themeSelect.addEventListener('change', () => { _previewState.theme = themeSelect.value; doPreview(); });
     body.appendChild(ctrlRow('테마', themeSelect));
+
+    // 1.2) 폰트 — 네이티브 select 대신 커스텀 드롭다운
+    // (모바일 브라우저는 네이티브 select의 option에 font-family를 줘도
+    //  시스템 기본 폰트로만 보여주는 경우가 많아서, 직접 그려서 확실하게 반영함)
+    const fontFieldWrap = document.createElement('div');
+    fontFieldWrap.style.cssText = 'position:relative;flex:1;';
+
+    const fontBtn = document.createElement('button');
+    fontBtn.type = 'button';
+    fontBtn.style.cssText = 'width:100%;text-align:left;background:#ffffff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:8px;padding:7px 10px;font-size:13px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;';
+
+    const fontBtnLabel = document.createElement('span');
+    fontBtnLabel.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    const fontBtnArrow = document.createElement('span');
+    fontBtnArrow.textContent = '▾';
+    fontBtnArrow.style.cssText = 'opacity:0.5;margin-left:8px;flex-shrink:0;';
+    fontBtn.appendChild(fontBtnLabel);
+    fontBtn.appendChild(fontBtnArrow);
+
+    const fontDropdown = document.createElement('div');
+    fontDropdown.style.cssText = 'display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:280px;overflow-y:auto;background:#fff;border:1px solid rgba(0,0,0,0.18);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:50;';
+
+    function fontOptionRow(value, label, family, isCustom) {
+        const row = document.createElement('div');
+        row.style.cssText = 'padding:9px 12px;font-size:14px;cursor:pointer;color:#1c1a17;border-bottom:1px solid rgba(0,0,0,0.06);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+        row.textContent = label;
+        // 실제 폰트 모양으로 이름을 보여줌 — 로드가 끝나면 자동으로(font-display:swap) 바뀜
+        row.style.fontFamily = `${family}, "Noto Sans KR", sans-serif`;
+        if (!isCustom) ensureFontReady(value); // 아직 안 불러온 폰트면 미리 로드 시작
+        row.addEventListener('mousedown', (e) => e.preventDefault()); // 버튼 blur로 닫히기 전에 클릭 처리
+        row.addEventListener('click', () => {
+            _previewState.fontFamily = value;
+            updateFontButton();
+            fontDropdown.style.display = 'none';
+            doPreview();
+        });
+        row.addEventListener('mouseenter', () => { row.style.background = '#f5f0e6'; });
+        row.addEventListener('mouseleave', () => { row.style.background = ''; });
+        return row;
+    }
+
+    const basicGroupLabel = document.createElement('div');
+    basicGroupLabel.textContent = '기본 제공';
+    basicGroupLabel.style.cssText = 'padding:6px 12px;font-size:10px;color:rgba(0,0,0,0.4);font-weight:700;background:#f7f4ec;';
+    fontDropdown.appendChild(basicGroupLabel);
+    CARD_FONTS.forEach(f => {
+        fontDropdown.appendChild(fontOptionRow(f.value, f.label, f.family, false));
+    });
+
+    const installedFonts = detectInstalledFonts();
+    if (installedFonts.length > 0) {
+        const customGroupLabel = document.createElement('div');
+        customGroupLabel.textContent = 'ST에 설치된 폰트';
+        customGroupLabel.style.cssText = 'padding:6px 12px;font-size:10px;color:rgba(0,0,0,0.4);font-weight:700;background:#f7f4ec;';
+        fontDropdown.appendChild(customGroupLabel);
+        installedFonts.forEach(name => {
+            const val = 'custom:' + name;
+            fontDropdown.appendChild(fontOptionRow(val, name, `"${name}"`, true));
+        });
+    }
+
+    function updateFontButton() {
+        const def = getFontDef(_previewState.fontFamily);
+        fontBtnLabel.textContent = def.label;
+        fontBtnLabel.style.fontFamily = `${def.family}, "Noto Sans KR", sans-serif`;
+    }
+    updateFontButton();
+
+    fontBtn.addEventListener('click', () => {
+        const isOpen = fontDropdown.style.display === 'block';
+        fontDropdown.style.display = isOpen ? 'none' : 'block';
+    });
+    document.addEventListener('click', (e) => {
+        if (!fontFieldWrap.contains(e.target)) fontDropdown.style.display = 'none';
+    });
+
+    fontFieldWrap.appendChild(fontBtn);
+    fontFieldWrap.appendChild(fontDropdown);
+    body.appendChild(ctrlRow('폰트', fontFieldWrap));
 
     // 1.5) 배경색 (테마 기본 or 커스텀)
     const bgColorWrap = document.createElement('div');
@@ -1367,7 +1553,7 @@ function openPreviewPopup(mesEl) {
     overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) overlay.remove(); });
 
     async function doPreview() {
-        await ensureFontReady();
+        await ensureFontReady(_previewState.fontFamily);
         const charName = _previewState.charName;
         const mesId = mesEl?.getAttribute('mesid');
         const cardData = {
@@ -1376,7 +1562,7 @@ function openPreviewPopup(mesEl) {
         };
         const url = renderCard(cardData, _previewState.theme, charName, mesId,
             _previewState.fontSize, _previewState.ratio, _previewState.textColor, _previewState.bgColor,
-            _previewState.bgImage, _previewState.overlayOpacity, _previewState.markColor);
+            _previewState.bgImage, _previewState.overlayOpacity, _previewState.markColor, _previewState.fontFamily);
         document.getElementById('ncard-prev-img').src = url;
     }
     doPreview();
@@ -1389,9 +1575,9 @@ let _editingCardId = null;
 
 async function runGenerate(mesEl) {
     try {
-        await ensureFontReady();
         const c = cfg();
         const state = _previewState || {};
+        await ensureFontReady(state.fontFamily || 'noto_serif');
         // 빈 문자열(이름 없음)도 유효한 값으로 취급 — state 자체가 없을 때만 기본 이름 사용
         const charName = (state.charName !== undefined && state.charName !== null)
             ? state.charName
@@ -1415,7 +1601,8 @@ async function runGenerate(mesEl) {
             state.bgColor || null,
             state.bgImage || null,
             state.overlayOpacity ?? 50,
-            state.markColor || null
+            state.markColor || null,
+            state.fontFamily || 'noto_serif'
         );
 
         // 갤러리 저장/수정용 meta (스타일 옵션 전체 포함 — 나중에 수정 시 복원용)
@@ -1426,6 +1613,7 @@ async function runGenerate(mesEl) {
                 theme: state.theme || c.theme,
                 fontSize: state.fontSize || c.font_size,
                 markColor: state.markColor || null,
+                fontFamily: state.fontFamily || 'noto_serif',
                 ratio: state.ratio || c.ratio || 'landscape',
                 textColor: state.textColor || null,
                 bgColor: state.bgColor || null,
@@ -2215,7 +2403,7 @@ function downloadCardImage(dataUrl, filename) {
     }
 }
 
-function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, ratioKey = 'landscape', textColorOverride = null, bgColorOverride = null, bgImage = null, overlayOpacity = 50, markColorOverride = null) {
+function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, ratioKey = 'landscape', textColorOverride = null, bgColorOverride = null, bgImage = null, overlayOpacity = 50, markColorOverride = null, fontFamilyKey = 'noto_serif') {
     const theme = THEMES.find(t => t.value === themeKey) || THEMES[0];
     const ratioConf = RATIOS.find(r => r.value === ratioKey) || RATIOS[0];
     const W = ratioConf.w;
@@ -2229,11 +2417,13 @@ function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, rati
     const maxTextWidth = W - PAD_X * 2;
 
     let scale = (fontSizePct || 100) / 100;
+    const fontDef = getFontDef(fontFamilyKey);
+    const fontStack = `${fontDef.family}, Georgia, "Noto Serif KR", serif`;
 
     function computeBlocks(s) {
         const narrPx  = Math.round(13 * s);
-        const font    = `${narrPx}px Georgia, "Noto Serif KR", serif`;
-        const boldFont = `bold ${narrPx}px Georgia, "Noto Serif KR", serif`;
+        const font    = `${narrPx}px ${fontStack}`;
+        const boldFont = `bold ${narrPx}px ${fontStack}`;
         return cardData.lines.map(line => {
             const tokens = parseMarkerTokens(line.text);
             const wrapped = wrapTokens(mctx, font, boldFont, tokens, maxTextWidth);
@@ -2261,10 +2451,10 @@ function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, rati
     const baseQuote = Math.round(18 * scale);
     const baseMeta = Math.round(11 * scale);
 
-    const FONT_NARR  = `${baseNarr}px Georgia, "Noto Serif KR", serif`;
-    const FONT_NARR_BOLD = `bold ${baseNarr}px Georgia, "Noto Serif KR", serif`;
-    const FONT_QUOTE = `bold ${baseQuote}px Georgia, "Noto Serif KR", serif`;
-    const FONT_META  = `${baseMeta}px Georgia, "Noto Serif KR", serif`;
+    const FONT_NARR  = `${baseNarr}px ${fontStack}`;
+    const FONT_NARR_BOLD = `bold ${baseNarr}px ${fontStack}`;
+    const FONT_QUOTE = `bold ${baseQuote}px ${fontStack}`;
+    const FONT_META  = `${baseMeta}px ${fontStack}`;
     const MARK_COLOR = hexToRgba(markColorOverride || '#ffe150', 0.55);
 
     const canvas = document.createElement('canvas');
@@ -2475,6 +2665,7 @@ async function startEditCard(c) {
         bgImage,
         charName: cardData.speaker || c.charName || '',
         markColor: style.markColor ?? null,
+        fontFamily: style.fontFamily,
     };
 
     // 3) 이 카드를 새로 저장하지 않고 덮어쓰도록 표시
