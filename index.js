@@ -1565,7 +1565,7 @@ function openPreviewPopup(mesEl) {
             speaker: charName, location: '',
             lines: excerptList.map(item => ({ text: item.text })),
         };
-        const url = renderCard(cardData, _previewState.theme, charName, mesId,
+        const url = renderCardWarm(cardData, _previewState.theme, charName, mesId,
             _previewState.fontSize, _previewState.ratio, _previewState.textColor, _previewState.bgColor,
             _previewState.bgImage, _previewState.overlayOpacity, _previewState.markColor, _previewState.fontFamily);
         document.getElementById('ncard-prev-img').src = url;
@@ -1595,7 +1595,7 @@ async function runGenerate(mesEl) {
             lines: excerptList.map(item => ({ text: item.text })),
         };
 
-        const dataUrl = renderCard(
+        const dataUrl = renderCardWarm(
             cardData,
             state.theme || c.theme,
             charName,
@@ -2406,6 +2406,21 @@ function downloadCardImage(dataUrl, filename) {
         a.click();
         document.body.removeChild(a);
     }
+}
+
+// 실제 카드를 그리는 캔버스/폰트크기 조합으로 특정 폰트를 이번 세션에서
+// 처음 쓰는 경우, 한 번 그려서 버리고 바로 다시 한 번 더 그려서 그 결과를
+// 씀 — 브라우저가 첫 페인트 때 일부 글자만 다른 폰트/굵기로 섞어 그리는
+// 레이스 컨디션을 확실하게 피하기 위함 (같은 실제 렌더 파이프라인으로 워밍업).
+const _fontWarmedInCanvas = new Set();
+function renderCardWarm(...args) {
+    const fontFamilyKey = args[11] || 'noto_serif';
+    let url = renderCard(...args);
+    if (!_fontWarmedInCanvas.has(fontFamilyKey)) {
+        _fontWarmedInCanvas.add(fontFamilyKey);
+        url = renderCard(...args); // 동일 인자로 한 번 더 그려서 그 결과를 사용
+    }
+    return url;
 }
 
 function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, ratioKey = 'landscape', textColorOverride = null, bgColorOverride = null, bgImage = null, overlayOpacity = 50, markColorOverride = null, fontFamilyKey = 'noto_serif') {
