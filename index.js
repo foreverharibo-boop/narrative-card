@@ -813,30 +813,35 @@ function showAddBtn(x, y, selectedText, mesEl) {
 }
 
 // 채팅 영역의 mouseup / touchend 이벤트로 드래그 감지
-document.addEventListener('mouseup', captureTextFieldSelection, true);
-document.addEventListener('touchend', captureTextFieldSelection, true);
 document.addEventListener('mouseup', handleSelectionEnd, true);
 document.addEventListener('touchend', handleSelectionEnd, true);
 // selectionchange: 드래그 중에도 즉시 + 버튼 표시 (debounce 80ms)
 document.addEventListener('selectionchange', () => {
-    captureTextFieldSelection();
     clearTimeout(window._ncardSelTimer);
     window._ncardSelTimer = setTimeout(() => handleSelectionEnd({ target: null }), 80);
 });
 
-// textarea/input 안의 선택은 클릭·포커스 이동에 매우 민감해서, 핸들러가
-// 실행되는 시점(디바운스/타임아웃 후)에는 이미 풀려있는 경우가 많음.
-// 그래서 선택이 살아있는 순간에 즉시 캡처해두고 핸들러는 이 값을 사용함.
-let _capturedFieldSel = null; // { el, text, time }
-function captureTextFieldSelection() {
-    const a = document.activeElement;
-    if (a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && a.type === 'text'))) {
-        const t = a.value.substring(a.selectionStart ?? 0, a.selectionEnd ?? 0).trim();
-        if (t && t.length >= 2) {
-            _capturedFieldSel = { el: a, text: t, time: Date.now() };
-        }
-    }
-}
+// ── feather-translator 번역문 수정창 전용 발췌 지원 ─────────
+// textarea 안의 선택은 window.getSelection()으로 안 잡히고, 포커스/클릭에
+// 선택이 쉽게 풀려서 범용 처리로는 불안정함. textarea의 'select' 이벤트
+// (선택이 일어나는 순간 그 요소에서 직접 발생)를 문서 레벨에서 위임받아
+// 해당 입력창에서만 확실하게 + 버튼을 띄움.
+const NCARD_TEXTAREA_ALLOWLIST = '.feather-edit-text';
+document.addEventListener('select', (e) => {
+    const el = e.target;
+    if (!el || el.tagName !== 'TEXTAREA') return;
+    if (!el.matches(NCARD_TEXTAREA_ALLOWLIST)) return;
+    const selText = el.value.substring(el.selectionStart ?? 0, el.selectionEnd ?? 0).trim();
+    if (!selText || selText.length < 2) { return; }
+    clearTimeout(window._ncardTaSelTimer);
+    // 드래그가 끝나길 짧게 기다렸다가 표시 (드래그 중 깜빡임 방지)
+    window._ncardTaSelTimer = setTimeout(() => {
+        const nowText = el.value.substring(el.selectionStart ?? 0, el.selectionEnd ?? 0).trim();
+        const finalText = (nowText && nowText.length >= 2) ? nowText : selText;
+        const rect = el.getBoundingClientRect();
+        showAddBtn(rect.left + rect.width / 2, rect.top - 8, finalText, null);
+    }, 150);
+}, true);
 
 function handleSelectionEnd(e) {
     // + 버튼 자체 클릭이면 무시
@@ -853,33 +858,12 @@ function handleSelectionEnd(e) {
             '#send_form',                            // 채팅 입력창 영역
         ].join(', ');
 
-        // ── 케이스 A: textarea/input 안에서 텍스트를 선택한 경우 ──
-        // (선택이 이 시점엔 이미 풀려있을 수 있으므로, 이벤트 순간에
-        //  captureTextFieldSelection()으로 캡처해둔 값을 사용)
-        const cap = _capturedFieldSel;
+        // textarea/input에 포커스가 있으면 위의 select 이벤트 경로가 담당하므로
+        // 여기서는 버튼을 지우지만 않고 그냥 종료 (지우면 select 경로가 띄운 버튼이 사라짐)
         const active = document.activeElement;
-        const isTextField = active && (active.tagName === 'TEXTAREA' || (active.tagName === 'INPUT' && active.type === 'text'));
-        if (isTextField && cap && cap.el === active && Date.now() - cap.time < 3000) {
-            // 아직 선택이 살아있으면 최신 값으로 갱신
-            const liveText = active.value.substring(active.selectionStart ?? 0, active.selectionEnd ?? 0).trim();
-            const selText = (liveText && liveText.length >= 2) ? liveText : cap.text;
+        if (active && (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT')) return;
 
-            // 우리 확장 자체 팝업이나 ST 네이티브 패널 안의 입력창은 제외
-            const excluded = active.closest('.ncard-popup, .ncard-popup-overlay, .ncard-add-btn')
-                || active.closest(ST_NATIVE_EXCLUDE);
-            if (!excluded && selText && selText.length >= 2) {
-                // textarea는 내부 선택 영역의 정확한 좌표를 얻을 수 없으므로
-                // 입력창 상단 중앙에 버튼을 띄움
-                const rect = active.getBoundingClientRect();
-                showAddBtn(rect.left + rect.width / 2, rect.top - 8, selText, null);
-                return;
-            }
-            removeAddBtn();
-            return;
-        }
-        if (isTextField) { removeAddBtn(); return; }
-
-        // ── 케이스 B: 일반 텍스트(채팅/타 확장 UI 등) 선택 ──
+        // ── 일반 텍스트(채팅/타 확장 UI 등) 선택 ──
         const sel = window.getSelection();
         if (!sel || sel.rangeCount === 0) { removeAddBtn(); return; }
         const text = sel.toString().trim();
