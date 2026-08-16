@@ -194,7 +194,7 @@ function injectStyles() {
 /* ── 드래그 선택 + 버튼 ─────────────────────────────────── */
 .ncard-add-btn {
     position: fixed !important;
-    z-index: 2147483646 !important;
+    z-index: 2147483647 !important;
     background: #fde97a;
     color: #5a4a00;
     border: none;
