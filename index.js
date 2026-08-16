@@ -826,6 +826,39 @@ function handleSelectionEnd(e) {
     if (e.target?.closest?.('.ncard-add-btn')) return;
 
     setTimeout(() => {
+        // ST 네이티브 패널 공통 제외 목록
+        const ST_NATIVE_EXCLUDE = [
+            '#WorldInfo', '#world_popup',            // 로어북/월드인포
+            '#left-nav-panel', '#right-nav-panel',   // 좌우 패널 (캐릭터 설명 등)
+            '#character_popup',                      // 캐릭터 편집 팝업
+            '#floatingPrompt',                       // 작가노트
+            '#top-settings-holder', '#top-bar',      // 상단 설정 서랍
+            '#send_form',                            // 채팅 입력창 영역
+        ].join(', ');
+
+        // ── 케이스 A: textarea/input 안에서 텍스트를 선택한 경우 ──
+        // (window.getSelection()으로는 안 잡히므로 selectionStart/End로 직접 읽음)
+        const active = document.activeElement;
+        const isTextField = active && (active.tagName === 'TEXTAREA' || (active.tagName === 'INPUT' && active.type === 'text'));
+        if (isTextField) {
+            // 우리 확장 자체 팝업이나 ST 네이티브 패널 안의 입력창은 제외
+            const excluded = active.closest('.ncard-popup, .ncard-popup-overlay, .ncard-add-btn')
+                || active.closest(ST_NATIVE_EXCLUDE);
+            if (!excluded) {
+                const selText = active.value.substring(active.selectionStart, active.selectionEnd).trim();
+                if (selText && selText.length >= 2) {
+                    // textarea는 내부 선택 영역의 정확한 좌표를 얻을 수 없으므로
+                    // 입력창 상단 중앙에 버튼을 띄움
+                    const rect = active.getBoundingClientRect();
+                    showAddBtn(rect.left + rect.width / 2, rect.top - 8, selText, null);
+                    return;
+                }
+            }
+            removeAddBtn();
+            return;
+        }
+
+        // ── 케이스 B: 일반 텍스트(채팅/타 확장 UI 등) 선택 ──
         const sel = window.getSelection();
         if (!sel || sel.rangeCount === 0) { removeAddBtn(); return; }
         const text = sel.toString().trim();
@@ -835,22 +868,13 @@ function handleSelectionEnd(e) {
         const container = range.commonAncestorContainer;
         const anchorEl = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
 
-        // 제외 영역 1: 우리 확장의 팝업/버튼 내부, 입력창 — 편집 방해 방지
-        if (anchorEl?.closest?.('.ncard-popup, .ncard-overlay, .ncard-add-btn, textarea, input, [contenteditable="true"]')) {
+        // 제외 영역 1: 우리 확장의 팝업/버튼 내부, contenteditable — 편집 방해 방지
+        if (anchorEl?.closest?.('.ncard-popup, .ncard-popup-overlay, .ncard-add-btn, [contenteditable="true"]')) {
             removeAddBtn();
             return;
         }
 
-        // 제외 영역 2: ST 네이티브 패널들 — 로어북/월드인포, 캐릭터 설명(좌우 패널),
-        // 작가노트, 상단 설정 서랍 등에서는 뜨지 않게 함.
-        // (채팅 메시지와 타사 확장 UI에서는 정상적으로 뜸)
-        const ST_NATIVE_EXCLUDE = [
-            '#WorldInfo', '#world_popup',            // 로어북/월드인포
-            '#left-nav-panel', '#right-nav-panel',   // 좌우 패널 (캐릭터 설명 등)
-            '#character_popup',                      // 캐릭터 편집 팝업
-            '#floatingPrompt',                       // 작가노트
-            '#top-settings-holder', '#top-bar',      // 상단 설정 서랍
-        ].join(', ');
+        // 제외 영역 2: ST 네이티브 패널
         if (anchorEl?.closest?.(ST_NATIVE_EXCLUDE)) {
             removeAddBtn();
             return;
