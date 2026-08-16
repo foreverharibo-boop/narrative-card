@@ -831,17 +831,37 @@ function handleSelectionEnd(e) {
         const text = sel.toString().trim();
         if (!text || text.length < 2) { removeAddBtn(); return; }
 
-        // 채팅 메시지 내부에서만 동작
         const range = sel.getRangeAt(0);
         const container = range.commonAncestorContainer;
-        const mesEl = (container.nodeType === Node.TEXT_NODE ? container.parentElement : container)
-            ?.closest?.('.mes');
-        if (!mesEl) { removeAddBtn(); return; }
+        const anchorEl = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+
+        // 제외 영역 1: 우리 확장의 팝업/버튼 내부, 입력창 — 편집 방해 방지
+        if (anchorEl?.closest?.('.ncard-popup, .ncard-overlay, .ncard-add-btn, textarea, input, [contenteditable="true"]')) {
+            removeAddBtn();
+            return;
+        }
+
+        // 제외 영역 2: ST 네이티브 패널들 — 로어북/월드인포, 캐릭터 설명(좌우 패널),
+        // 작가노트, 상단 설정 서랍 등에서는 뜨지 않게 함.
+        // (채팅 메시지와 타사 확장 UI에서는 정상적으로 뜸)
+        const ST_NATIVE_EXCLUDE = [
+            '#WorldInfo', '#world_popup',            // 로어북/월드인포
+            '#left-nav-panel', '#right-nav-panel',   // 좌우 패널 (캐릭터 설명 등)
+            '#character_popup',                      // 캐릭터 편집 팝업
+            '#floatingPrompt',                       // 작가노트
+            '#top-settings-holder', '#top-bar',      // 상단 설정 서랍
+        ].join(', ');
+        if (anchorEl?.closest?.(ST_NATIVE_EXCLUDE)) {
+            removeAddBtn();
+            return;
+        }
+
+        // 채팅 메시지면 해당 mes 요소를, 그 외(타 확장 UI 등)면 null을 넘김
+        const mesEl = anchorEl?.closest?.('.mes') || null;
 
         // 위치 계산
         const rect = range.getBoundingClientRect();
         const x = rect.left + rect.width / 2;
-        const y = rect.top + window.scrollY;
 
         showAddBtn(x, rect.top - 8, text, mesEl);
     }, 30);
