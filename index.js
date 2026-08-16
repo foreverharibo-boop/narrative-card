@@ -823,25 +823,40 @@ document.addEventListener('selectionchange', () => {
 
 // ── feather-translator 번역문 수정창 전용 발췌 지원 ─────────
 // textarea 안의 선택은 window.getSelection()으로 안 잡히고, 포커스/클릭에
-// 선택이 쉽게 풀려서 범용 처리로는 불안정함. textarea의 'select' 이벤트
-// (선택이 일어나는 순간 그 요소에서 직접 발생)를 문서 레벨에서 위임받아
-// 해당 입력창에서만 확실하게 + 버튼을 띄움.
+// 선택이 쉽게 풀려서 범용 처리로는 불안정함. 아래 두 경로로 이중 감지:
+//  1) textarea의 'select' 이벤트 (선택이 일어나는 순간 발생)
+//  2) 해당 textarea 위에서의 mouseup/touchend (드래그 종료 순간)
 const NCARD_TEXTAREA_ALLOWLIST = '.feather-edit-text';
+
+function showBtnForTextarea(el, selText) {
+    const rect = el.getBoundingClientRect();
+    console.log('[NarrativeCard] textarea 발췌 버튼 표시:', selText.slice(0, 20) + '...');
+    showAddBtn(rect.left + rect.width / 2, rect.top - 8, selText, null);
+}
+
+function tryTextareaSelection(el, delay) {
+    clearTimeout(window._ncardTaSelTimer);
+    window._ncardTaSelTimer = setTimeout(() => {
+        const t = el.value.substring(el.selectionStart ?? 0, el.selectionEnd ?? 0).trim();
+        if (t && t.length >= 2) showBtnForTextarea(el, t);
+    }, delay);
+}
+
 document.addEventListener('select', (e) => {
     const el = e.target;
-    if (!el || el.tagName !== 'TEXTAREA') return;
-    if (!el.matches(NCARD_TEXTAREA_ALLOWLIST)) return;
-    const selText = el.value.substring(el.selectionStart ?? 0, el.selectionEnd ?? 0).trim();
-    if (!selText || selText.length < 2) { return; }
-    clearTimeout(window._ncardTaSelTimer);
-    // 드래그가 끝나길 짧게 기다렸다가 표시 (드래그 중 깜빡임 방지)
-    window._ncardTaSelTimer = setTimeout(() => {
-        const nowText = el.value.substring(el.selectionStart ?? 0, el.selectionEnd ?? 0).trim();
-        const finalText = (nowText && nowText.length >= 2) ? nowText : selText;
-        const rect = el.getBoundingClientRect();
-        showAddBtn(rect.left + rect.width / 2, rect.top - 8, finalText, null);
-    }, 150);
+    if (!el || el.tagName !== 'TEXTAREA' || !el.matches?.(NCARD_TEXTAREA_ALLOWLIST)) return;
+    console.log('[NarrativeCard] select 이벤트 감지');
+    tryTextareaSelection(el, 150);
 }, true);
+
+['mouseup', 'touchend'].forEach(evt => {
+    document.addEventListener(evt, (e) => {
+        const el = e.target;
+        if (!el || el.tagName !== 'TEXTAREA' || !el.matches?.(NCARD_TEXTAREA_ALLOWLIST)) return;
+        console.log('[NarrativeCard] textarea ' + evt + ' 감지');
+        tryTextareaSelection(el, 60);
+    }, true);
+});
 
 function handleSelectionEnd(e) {
     // + 버튼 자체 클릭이면 무시
@@ -3101,5 +3116,5 @@ jQuery(async () => {
     injectWandMenu();
     migrateOldIndexedDbGallery();
 
-    console.log('[NarrativeCard] 확장 로드 완료 (드래그 발췌 모드)');
+    console.log('[NarrativeCard] 확장 로드 완료 (드래그 발췌 모드) [v-textarea-support-2]');
 });
