@@ -769,7 +769,7 @@ function removeAddBtn() {
     if (_addBtn) { _addBtn.remove(); _addBtn = null; }
 }
 
-function showAddBtn(x, y, selectedText, mesEl) {
+function showAddBtn(x, y, selectedText, mesEl, host = document.body) {
     removeAddBtn();
     const btn = document.createElement('button');
     btn.className = 'ncard-add-btn';
@@ -777,7 +777,7 @@ function showAddBtn(x, y, selectedText, mesEl) {
     btn.title = '발췌에 추가';
     btn.style.left = `${Math.min(x, window.innerWidth - 50)}px`;
     btn.style.top = `${Math.max(y - 48, 6)}px`;
-    document.body.appendChild(btn);
+    host.appendChild(btn);
     _addBtn = btn;
 
     const add = (e) => {
@@ -831,7 +831,10 @@ const NCARD_TEXTAREA_ALLOWLIST = '.feather-edit-text';
 function showBtnForTextarea(el, selText) {
     const rect = el.getBoundingClientRect();
     console.log('[NarrativeCard] textarea 발췌 버튼 표시:', selText.slice(0, 20) + '...');
-    showAddBtn(rect.left + rect.width / 2, rect.top - 8, selText, null);
+    // 번역기 모달 같은 최상위 오버레이 안의 textarea라면, 버튼도 그 오버레이
+    // 안쪽에 넣어서 z-index 경쟁 없이 무조건 모달 위에 보이게 함
+    const host = el.closest('.feather-edit-overlay, .feather-log-overlay, dialog, [class*="overlay"]') || document.body;
+    showAddBtn(rect.left + rect.width / 2, rect.top - 8, selText, null, host);
 }
 
 function tryTextareaSelection(el, delay) {
