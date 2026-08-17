@@ -828,13 +828,30 @@ document.addEventListener('selectionchange', () => {
 //  2) 해당 textarea 위에서의 mouseup/touchend (드래그 종료 순간)
 const NCARD_TEXTAREA_ALLOWLIST = '.feather-edit-text';
 
+// 선택된 요소가 떠있는 모달/오버레이(position:fixed + 높은 z-index) 안에
+// 있으면 그 오버레이를 반환 — + 버튼을 그 안에 넣어야 가려지지 않음.
+// 특정 확장 클래스명에 의존하지 않는 범용 감지: 조상들을 body까지 훑으면서
+// fixed/absolute + z-index >= 1000 인 요소 중 body에 가장 가까운 것을 찾음.
+function findOverlayHost(el) {
+    let host = null;
+    let cur = el;
+    while (cur && cur !== document.body && cur.nodeType === Node.ELEMENT_NODE) {
+        try {
+            const cs = getComputedStyle(cur);
+            const z = parseInt(cs.zIndex, 10);
+            if ((cs.position === 'fixed' || cs.position === 'absolute') && !isNaN(z) && z >= 1000) {
+                host = cur; // 더 바깥(=body에 가까운) 오버레이로 계속 갱신
+            }
+        } catch (_) {}
+        cur = cur.parentElement;
+    }
+    return host || document.body;
+}
+
 function showBtnForTextarea(el, selText) {
     const rect = el.getBoundingClientRect();
     console.log('[NarrativeCard] textarea 발췌 버튼 표시:', selText.slice(0, 20) + '...');
-    // 번역기 모달 같은 최상위 오버레이 안의 textarea라면, 버튼도 그 오버레이
-    // 안쪽에 넣어서 z-index 경쟁 없이 무조건 모달 위에 보이게 함
-    const host = el.closest('.feather-edit-overlay, .feather-log-overlay, dialog, [class*="overlay"]') || document.body;
-    showAddBtn(rect.left + rect.width / 2, rect.top - 8, selText, null, host);
+    showAddBtn(rect.left + rect.width / 2, rect.top - 8, selText, null, findOverlayHost(el));
 }
 
 function tryTextareaSelection(el, delay) {
@@ -910,7 +927,8 @@ function handleSelectionEnd(e) {
         const rect = range.getBoundingClientRect();
         const x = rect.left + rect.width / 2;
 
-        showAddBtn(x, rect.top - 8, text, mesEl);
+        // 타 확장의 떠있는 모달 안이라면 버튼도 그 모달 안에 넣어 가려지지 않게 함
+        showAddBtn(x, rect.top - 8, text, mesEl, findOverlayHost(anchorEl));
     }, 30);
 }
 
