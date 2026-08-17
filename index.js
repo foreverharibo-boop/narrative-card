@@ -771,6 +771,7 @@ function removeAddBtn() {
 
 function showAddBtn(x, y, selectedText, mesEl, host = document.body) {
     removeAddBtn();
+    _lastOverlayHost = (host === document.body) ? null : host;
     const btn = document.createElement('button');
     btn.className = 'ncard-add-btn';
     btn.textContent = '+';
@@ -846,6 +847,13 @@ function findOverlayHost(el) {
         cur = cur.parentElement;
     }
     return host || document.body;
+}
+
+// 마지막으로 + 버튼이 붙었던 오버레이 호스트 — 발췌/옵션/결과 팝업도
+// 같은 곳에 붙여야 타 확장 모달 위에 뜬다 (모달을 닫지 않아도 보이도록)
+let _lastOverlayHost = null;
+function popupHost() {
+    return (_lastOverlayHost && _lastOverlayHost.isConnected) ? _lastOverlayHost : document.body;
 }
 
 function showBtnForTextarea(el, selText) {
@@ -975,7 +983,7 @@ function openExcerptPopup(mesEl) {
     popup.appendChild(body);
     popup.appendChild(foot);
     overlay.appendChild(popup);
-    document.body.appendChild(overlay);
+    popupHost().appendChild(overlay);
 
     refreshPopupList();
 
@@ -1659,7 +1667,7 @@ function openPreviewPopup(mesEl) {
     modal.appendChild(body);
     modal.appendChild(foot);
     overlay.appendChild(modal);
-    document.body.appendChild(overlay);
+    popupHost().appendChild(overlay);
     overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) overlay.remove(); });
 
     async function doPreview() {
@@ -1809,7 +1817,7 @@ function openResultPopup(dataUrl, savedId) {
     modal.appendChild(imgWrap);
     modal.appendChild(foot);
     overlay.appendChild(modal);
-    document.body.appendChild(overlay);
+    popupHost().appendChild(overlay);
     overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) overlay.remove(); });
 }
 
@@ -2753,7 +2761,7 @@ function openCardViewer(dataUrl) {
     inner.appendChild(img);
     inner.appendChild(dlBtn);
     overlay.appendChild(inner);
-    document.body.appendChild(overlay);
+    popupHost().appendChild(overlay);
     overlay.addEventListener('click', () => overlay.remove());
     inner.addEventListener('click', (e) => e.stopPropagation());
 
@@ -2932,7 +2940,7 @@ async function openGallery() {
     if (charNames.length > 0) modal.appendChild(filterRow);
     modal.appendChild(grid);
     overlay.appendChild(modal);
-    document.body.appendChild(overlay);
+    popupHost().appendChild(overlay);
 }
 
 // ── 설정 패널 ─────────────────────────────────────────────
