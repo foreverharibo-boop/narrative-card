@@ -845,7 +845,7 @@ function repositionAddBtn(btn) {
     const anchorX = Number(btn.dataset.anchorX);
     const anchorY = Number(btn.dataset.anchorY);
     const selectionBottom = Number(btn.dataset.selectionBottom);
-    const touchReserve = isTouchSelectionDevice() ? 64 : 0;
+    const touchReserve = isTouchSelectionDevice() ? 44 : 0;
 
     let left = Math.max(edge, Math.min(anchorX - size / 2, window.innerWidth - size - edge));
     let top = anchorY - size - 12 - touchReserve;
