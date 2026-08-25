@@ -768,22 +768,153 @@ function cfg() {
 let excerptList = [];
 let _addBtn = null;
 let _lastMesEl = null;
+let _addBtnAvoidObserver = null;
+let _addBtnAvoidTimers = [];
+let _addBtnAvoidFrame = null;
+
+function stopAddBtnAvoidance() {
+    if (_addBtnAvoidObserver) {
+        _addBtnAvoidObserver.disconnect();
+        _addBtnAvoidObserver = null;
+    }
+    _addBtnAvoidTimers.forEach(id => clearTimeout(id));
+    _addBtnAvoidTimers = [];
+    if (_addBtnAvoidFrame !== null) {
+        cancelAnimationFrame(_addBtnAvoidFrame);
+        _addBtnAvoidFrame = null;
+    }
+}
 
 function removeAddBtn() {
+    stopAddBtnAvoidance();
     if (_addBtn) { _addBtn.remove(); _addBtn = null; }
 }
 
-function showAddBtn(x, y, selectedText, mesEl, host = document.body) {
+// Android/Galaxy의 텍스트 선택 도구막대는 브라우저 DOM 바깥의 시스템 UI라
+// 직접 감지할 수 없다. 터치 기기에서는 그 높이만큼 위쪽 여백을 미리 확보하고,
+// 웹페이지 안의 다른 확장 팝업은 실제 사각형 충돌을 검사해 추가로 피한다.
+function isTouchSelectionDevice() {
+    try {
+        return navigator.maxTouchPoints > 0
+            || window.matchMedia?.('(hover: none), (pointer: coarse)').matches;
+    } catch (_) {
+        return false;
+    }
+}
+
+function isFloatingPopupCandidate(el, btn) {
+    if (!el || el === btn || el === document.body || el === document.documentElement) return false;
+    if (el.contains(btn) || btn.contains(el) || el.closest?.('.ncard-popup-overlay, .ncard-add-btn')) return false;
+
+    let cs;
+    try { cs = getComputedStyle(el); } catch (_) { return false; }
+    if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) return false;
+
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 24 || rect.height < 20) return false;
+    // 화면 전체를 덮는 반투명 백드롭은 실제 팝업 몸체가 아니므로 제외한다.
+    if (rect.width > window.innerWidth * 0.92 && rect.height > window.innerHeight * 0.75) return false;
+
+    const hint = `${el.id || ''} ${typeof el.className === 'string' ? el.className : ''}`;
+    const semanticPopup = el.matches?.('[role="dialog"], [role="menu"], [role="tooltip"], [popover], [aria-modal="true"]')
+        || /(popup|popover|tooltip|context.?menu|floating|toolbar|bubble|galaxy)/i.test(hint);
+    const z = parseInt(cs.zIndex, 10);
+    return semanticPopup
+        || cs.position === 'fixed'
+        || ((cs.position === 'absolute' || cs.position === 'sticky') && !isNaN(z) && z >= 10);
+}
+
+function popupRectsOverlapping(rect, btn) {
+    const collisions = [];
+    document.querySelectorAll('body *').forEach(el => {
+        if (!isFloatingPopupCandidate(el, btn)) return;
+        const r = el.getBoundingClientRect();
+        if (rect.left < r.right && rect.right > r.left && rect.top < r.bottom && rect.bottom > r.top) {
+            collisions.push(r);
+        }
+    });
+    return collisions;
+}
+
+function repositionAddBtn(btn) {
+    if (!btn?.isConnected || btn !== _addBtn) return;
+
+    const size = btn.offsetWidth || 36;
+    const gap = 8;
+    const edge = 6;
+    const anchorX = Number(btn.dataset.anchorX);
+    const anchorY = Number(btn.dataset.anchorY);
+    const selectionBottom = Number(btn.dataset.selectionBottom);
+    const touchReserve = isTouchSelectionDevice() ? 64 : 0;
+
+    let left = Math.max(edge, Math.min(anchorX - size / 2, window.innerWidth - size - edge));
+    let top = anchorY - size - 12 - touchReserve;
+
+    // 화면 위쪽에 공간이 없으면 시스템 선택 메뉴와 함께 뭉치지 않도록 아래로 보낸다.
+    if (top < edge && Number.isFinite(selectionBottom)) {
+        top = selectionBottom + 14;
+    }
+    top = Math.max(edge, Math.min(top, window.innerHeight - size - edge));
+
+    // 겹치는 DOM 팝업이 여러 장 쌓여 있어도 차례로 모두 넘어간다.
+    for (let i = 0; i < 6; i++) {
+        const probe = { left, top, right: left + size, bottom: top + size };
+        const collisions = popupRectsOverlapping(probe, btn);
+        if (!collisions.length) break;
+
+        const nextTop = Math.min(...collisions.map(r => r.top)) - size - gap;
+        if (nextTop >= edge) {
+            top = nextTop;
+        } else {
+            const nextBottom = Math.max(...collisions.map(r => r.bottom)) + gap;
+            top = Math.min(nextBottom, window.innerHeight - size - edge);
+        }
+    }
+
+    btn.style.left = `${Math.round(left)}px`;
+    btn.style.top = `${Math.round(top)}px`;
+}
+
+function watchAddBtnAvoidance(btn) {
+    const reflow = () => {
+        if (_addBtnAvoidFrame !== null) return;
+        _addBtnAvoidFrame = requestAnimationFrame(() => {
+            _addBtnAvoidFrame = null;
+            repositionAddBtn(btn);
+        });
+    };
+    [0, 60, 140, 280, 500, 800].forEach(delay => {
+        _addBtnAvoidTimers.push(setTimeout(reflow, delay));
+    });
+
+    // 타 확장의 팝업이 선택 직후 조금 늦게 붙는 경우도 짧게 추적한다.
+    _addBtnAvoidObserver = new MutationObserver(records => {
+        // 버튼 자신의 left/top 변경은 다시 관찰하지 않아 무한 재배치를 막는다.
+        if (records.some(record => record.target !== btn && !btn.contains(record.target))) reflow();
+    });
+    _addBtnAvoidObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class', 'style', 'hidden', 'open', 'aria-hidden'],
+    });
+    _addBtnAvoidTimers.push(setTimeout(stopAddBtnAvoidance, 1000));
+}
+
+function showAddBtn(x, y, selectedText, mesEl, host = document.body, selectionBottom = y) {
     removeAddBtn();
     _lastOverlayHost = (host === document.body) ? null : host;
     const btn = document.createElement('button');
     btn.className = 'ncard-add-btn';
     btn.textContent = '+';
     btn.title = '발췌에 추가';
-    btn.style.left = `${Math.min(x, window.innerWidth - 50)}px`;
-    btn.style.top = `${Math.max(y - 48, 6)}px`;
+    btn.dataset.anchorX = String(x);
+    btn.dataset.anchorY = String(y);
+    btn.dataset.selectionBottom = String(selectionBottom);
     host.appendChild(btn);
     _addBtn = btn;
+    repositionAddBtn(btn);
+    watchAddBtnAvoidance(btn);
 
     const add = (e) => {
         e.preventDefault();
@@ -863,7 +994,7 @@ function popupHost() {
 function showBtnForTextarea(el, selText) {
     const rect = el.getBoundingClientRect();
     console.log('[NarrativeCard] textarea 발췌 버튼 표시:', selText.slice(0, 20) + '...');
-    showAddBtn(rect.left + rect.width / 2, rect.top - 8, selText, null, findOverlayHost(el));
+    showAddBtn(rect.left + rect.width / 2, rect.top - 8, selText, null, findOverlayHost(el), rect.bottom);
 }
 
 function tryTextareaSelection(el, delay) {
@@ -940,7 +1071,7 @@ function handleSelectionEnd(e) {
         const x = rect.left + rect.width / 2;
 
         // 타 확장의 떠있는 모달 안이라면 버튼도 그 모달 안에 넣어 가려지지 않게 함
-        showAddBtn(x, rect.top - 8, text, mesEl, findOverlayHost(anchorEl));
+        showAddBtn(x, rect.top - 8, text, mesEl, findOverlayHost(anchorEl), rect.bottom);
     }, 30);
 }
 
