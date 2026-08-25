@@ -660,6 +660,10 @@ const THEMES = [
     { value: 'slytherin',  label: '🐍 슬리데린',   bg: '#0d1f1a', text: '#d8e8de', sub: 'rgba(216,232,222,0.55)', line: 'rgba(216,232,222,0.2)', meta: 'rgba(216,232,222,0.5)', accent: '#c0c0c0', accent2: '#1a5c3a', deco: 'house' },
     { value: 'ravenclaw',  label: '🦅 래번클로',   bg: '#0c1524', text: '#dde6f0', sub: 'rgba(221,230,240,0.55)', line: 'rgba(221,230,240,0.2)', meta: 'rgba(221,230,240,0.5)', accent: '#946f42', accent2: '#1e3a63', deco: 'house' },
     { value: 'hufflepuff', label: '🦡 후플푸프',   bg: '#1c1808', text: '#f3e6b8', sub: 'rgba(243,230,184,0.6)', line: 'rgba(243,230,184,0.2)', meta: 'rgba(243,230,184,0.55)', accent: '#f0c14b', accent2: '#2b2410', deco: 'house' },
+    // 마블 히어로 테마
+    { value: 'ironman_lab',         label: '🦾 아이언맨 — 스타크 화이트 랩', bg: '#eef3f6', text: '#20282d', sub: 'rgba(32,40,45,0.55)', line: 'rgba(180,138,69,0.45)', meta: 'rgba(68,82,90,0.72)', accent: '#2a9db4', accent2: '#b48a45', deco: 'ironman_lab' },
+    { value: 'strange_manuscript',  label: '🔮 닥터 스트레인지 — 생텀 고문서', bg: '#e8dcc2', text: '#34261d', sub: 'rgba(52,38,29,0.58)', line: 'rgba(155,111,50,0.5)', meta: 'rgba(93,67,48,0.72)', accent: '#7d2631', accent2: '#9b6f32', deco: 'strange_manuscript' },
+    { value: 'spiderman_night',     label: '🕷️ 스파이더맨 — 퀸즈 애프터 다크', bg: '#0a2035', text: '#f5f4ef', sub: 'rgba(245,244,239,0.58)', line: 'rgba(239,76,90,0.45)', meta: 'rgba(184,207,219,0.72)', accent: '#ef4c5a', accent2: '#d5a856', deco: 'spiderman_night' },
 ];
 
 
@@ -2329,6 +2333,295 @@ function drawDecoration(ctx, W, H, theme) {
         drawDiamond(30, H - 30, 7);
         drawDiamond(W - 30, H - 30, 7);
         ctx.restore();
+
+    } else if (theme.deco === 'ironman_lab') {
+        // ── 아이언맨: 화이트 티타늄 연구실 + 가장자리 회로 + 아크 리액터 ──
+        const grd = ctx.createLinearGradient(0, 0, W, H);
+        grd.addColorStop(0, '#f8fafb');
+        grd.addColorStop(0.52, '#edf2f4');
+        grd.addColorStop(1, '#d9e0e4');
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, W, H);
+
+        // 티타늄 패널 — 본문을 침범하지 않도록 모서리에만 배치
+        ctx.fillStyle = '#eef2f4';
+        ctx.strokeStyle = theme.accent2;
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.78;
+        ctx.beginPath();
+        ctx.moveTo(0, 0); ctx.lineTo(W * 0.39, 0); ctx.lineTo(W * 0.31, H * 0.11); ctx.lineTo(0, H * 0.18);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#cbd3d8';
+        ctx.beginPath();
+        ctx.moveTo(W, H); ctx.lineTo(W * 0.72, H); ctx.lineTo(W * 0.79, H * 0.88); ctx.lineTo(W, H * 0.81);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+
+        // 골드 헤어라인
+        ctx.globalAlpha = 0.42;
+        ctx.strokeStyle = theme.accent2;
+        ctx.lineWidth = 1;
+        [
+            [[W * 0.045, H * 0.25], [W * 0.28, H * 0.25], [W * 0.34, H * 0.18]],
+            [[W * 0.65, H * 0.06], [W * 0.74, H * 0.18], [W * 0.95, H * 0.18]],
+            [[W * 0.05, H * 0.82], [W * 0.22, H * 0.82], [W * 0.28, H * 0.90]],
+        ].forEach(points => {
+            ctx.beginPath();
+            points.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
+            ctx.stroke();
+        });
+
+        // 가장자리 회로 패턴
+        ctx.strokeStyle = theme.accent;
+        ctx.fillStyle = theme.accent;
+        ctx.globalAlpha = 0.45;
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 3; i++) {
+            const yy = H * (0.06 + i * 0.03);
+            ctx.beginPath();
+            ctx.moveTo(W * 0.58, yy);
+            ctx.lineTo(W * 0.64, yy);
+            ctx.lineTo(W * 0.67, yy + H * 0.03);
+            ctx.lineTo(W * (0.73 + i * 0.035), yy + H * 0.03);
+            ctx.stroke();
+            ctx.beginPath(); ctx.arc(W * (0.73 + i * 0.035), yy + H * 0.03, 2, 0, Math.PI * 2); ctx.fill();
+        }
+        for (let i = 0; i < 3; i++) {
+            const yy = H * (0.82 + i * 0.035);
+            ctx.beginPath();
+            ctx.moveTo(W * 0.05, yy);
+            ctx.lineTo(W * 0.13, yy);
+            ctx.lineTo(W * 0.16, yy - H * 0.025);
+            ctx.lineTo(W * (0.21 + i * 0.025), yy - H * 0.025);
+            ctx.stroke();
+            ctx.beginPath(); ctx.arc(W * (0.21 + i * 0.025), yy - H * 0.025, 2, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // 아크 리액터 — 우측 하단 워터마크
+        const rcx = W * 0.875, rcy = H * 0.79, rr = Math.min(W, H) * 0.085;
+        const rg = ctx.createRadialGradient(rcx, rcy, 0, rcx, rcy, rr * 1.55);
+        rg.addColorStop(0, 'rgba(80,220,236,0.20)');
+        rg.addColorStop(0.45, 'rgba(80,220,236,0.08)');
+        rg.addColorStop(1, 'rgba(80,220,236,0)');
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = rg;
+        ctx.beginPath(); ctx.arc(rcx, rcy, rr * 1.55, 0, Math.PI * 2); ctx.fill();
+        [1, 0.72, 0.43].forEach((m, i) => {
+            ctx.globalAlpha = i === 2 ? 0.72 : 0.46;
+            ctx.strokeStyle = theme.accent;
+            ctx.lineWidth = i === 2 ? 1.6 : 1;
+            ctx.beginPath(); ctx.arc(rcx, rcy, rr * m, 0, Math.PI * 2); ctx.stroke();
+        });
+        ctx.globalAlpha = 0.5;
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 3) {
+            ctx.beginPath();
+            ctx.moveTo(rcx + Math.cos(a) * rr * 0.48, rcy + Math.sin(a) * rr * 0.48);
+            ctx.lineTo(rcx + Math.cos(a) * rr * 0.88, rcy + Math.sin(a) * rr * 0.88);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 0.62;
+        ctx.beginPath();
+        ctx.moveTo(rcx, rcy - rr * 0.32);
+        ctx.lineTo(rcx + rr * 0.29, rcy + rr * 0.25);
+        ctx.lineTo(rcx - rr * 0.29, rcy + rr * 0.25);
+        ctx.closePath(); ctx.stroke();
+
+        // 작은 시스템 라벨 — 중앙 장식/형광펜 없음
+        const labelSize = Math.max(8, Math.round(Math.min(W, H) * 0.018));
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = '#283239';
+        ctx.font = `700 ${labelSize}px Arial, sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText('STARK LAB / 07', W * 0.065, H * 0.10);
+        ctx.fillStyle = theme.accent;
+        ctx.globalAlpha = 0.8;
+        ctx.font = `700 ${Math.max(7, labelSize - 2)}px Arial, sans-serif`;
+        ctx.fillText('CLEAN ENERGY SYSTEM · ONLINE', W * 0.065, H * 0.145);
+
+    } else if (theme.deco === 'strange_manuscript') {
+        // ── 닥터 스트레인지: 양피지 고문서 + 가죽 모서리 + 생텀 문양 ──
+        const grd = ctx.createLinearGradient(0, 0, W, H);
+        grd.addColorStop(0, '#f1e8d4');
+        grd.addColorStop(0.5, '#e8dcc2');
+        grd.addColorStop(1, '#d8c7a7');
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, W, H);
+
+        // 종이 결 — 낮은 불투명도의 점만 사용해 가독성 유지
+        ctx.fillStyle = '#5a4125';
+        for (let i = 0; i < 180; i++) {
+            ctx.globalAlpha = 0.025 + rand() * 0.04;
+            const x = rand() * W, y = rand() * H;
+            ctx.beginPath(); ctx.arc(x, y, 0.4 + rand() * 0.7, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // 와인색 가죽 모서리
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = theme.accent;
+        ctx.beginPath();
+        ctx.moveTo(0, 0); ctx.lineTo(W * 0.17, 0); ctx.lineTo(0, H * 0.22); ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(W, H); ctx.lineTo(W * 0.83, H); ctx.lineTo(W, H * 0.78); ctx.closePath(); ctx.fill();
+
+        // 고문서 이중 프레임
+        ctx.strokeStyle = theme.accent2;
+        ctx.globalAlpha = 0.58;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(15, 15, W - 30, H - 30);
+        ctx.globalAlpha = 0.30;
+        ctx.strokeRect(21, 21, W - 42, H - 42);
+
+        // 상단 문헌 표기
+        const labelSize = Math.max(8, Math.round(Math.min(W, H) * 0.018));
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = '#4a2d1f';
+        ctx.font = `700 ${labelSize}px Georgia, serif`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText('THE SANCTUM MANUSCRIPT', W * 0.19, H * 0.105);
+        ctx.fillStyle = '#8a4c39';
+        ctx.globalAlpha = 0.76;
+        ctx.font = `700 ${Math.max(7, labelSize - 2)}px Georgia, serif`;
+        ctx.fillText('VOLUME III · MYSTIC RECORD', W * 0.19, H * 0.15);
+        ctx.strokeStyle = theme.accent2;
+        ctx.globalAlpha = 0.42;
+        ctx.beginPath(); ctx.moveTo(W * 0.19, H * 0.17); ctx.lineTo(W * 0.48, H * 0.17); ctx.stroke();
+
+        // 아가모토의 눈을 연상시키는 상단 우측 봉인
+        const ex = W * 0.855, ey = H * 0.12, es = Math.min(W, H) * 0.05;
+        ctx.strokeStyle = theme.accent2;
+        ctx.globalAlpha = 0.75;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(ex - es, ey); ctx.lineTo(ex, ey - es * 0.52); ctx.lineTo(ex + es, ey); ctx.lineTo(ex, ey + es * 0.52); ctx.closePath(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(ex, ey, es * 0.42, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = theme.accent2;
+        ctx.beginPath(); ctx.arc(ex, ey, es * 0.13, 0, Math.PI * 2); ctx.fill();
+
+        // 우측 하단 작은 마법진 — 본문 중앙을 침범하지 않음
+        const mcx = W * 0.875, mcy = H * 0.81, mr = Math.min(W, H) * 0.082;
+        ctx.strokeStyle = theme.accent2;
+        [1, 0.79, 0.53, 0.27].forEach((m, i) => {
+            ctx.globalAlpha = i % 2 ? 0.28 : 0.48;
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.arc(mcx, mcy, mr * m, 0, Math.PI * 2); ctx.stroke();
+        });
+        ctx.globalAlpha = 0.36;
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
+            ctx.beginPath();
+            ctx.moveTo(mcx + Math.cos(a) * mr * 0.55, mcy + Math.sin(a) * mr * 0.55);
+            ctx.lineTo(mcx + Math.cos(a) * mr, mcy + Math.sin(a) * mr);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 0.75;
+        ctx.fillStyle = '#7c482f';
+        ctx.font = `700 ${Math.max(8, labelSize)}px Georgia, serif`;
+        ctx.fillText('III', W * 0.055, H * 0.92);
+
+    } else if (theme.deco === 'spiderman_night') {
+        // ── 스파이더맨: 퀸즈 심야 하늘 + 시티 실루엣 + 코너 거미줄 ──
+        const grd = ctx.createLinearGradient(0, 0, 0, H);
+        grd.addColorStop(0, '#061323');
+        grd.addColorStop(0.55, '#0a2035');
+        grd.addColorStop(1, '#153a5c');
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, W, H);
+
+        // 지평선의 은은한 붉은 야광
+        const dusk = ctx.createRadialGradient(W * 0.48, H * 1.05, 0, W * 0.48, H * 1.05, W * 0.72);
+        dusk.addColorStop(0, 'rgba(207,66,84,0.16)');
+        dusk.addColorStop(0.55, 'rgba(207,66,84,0.05)');
+        dusk.addColorStop(1, 'rgba(207,66,84,0)');
+        ctx.fillStyle = dusk;
+        ctx.fillRect(0, 0, W, H);
+
+        // 초승달
+        const moonX = W * 0.88, moonY = H * 0.12, moonR = Math.min(W, H) * 0.047;
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = '#edf3f4';
+        ctx.beginPath(); ctx.arc(moonX, moonY, moonR, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#071526';
+        ctx.beginPath(); ctx.arc(moonX + moonR * 0.38, moonY - moonR * 0.12, moonR * 0.92, 0, Math.PI * 2); ctx.fill();
+
+        // 별
+        ctx.fillStyle = '#d7e7ef';
+        for (let i = 0; i < 38; i++) {
+            ctx.globalAlpha = 0.35 + rand() * 0.5;
+            const x = W * 0.06 + rand() * W * 0.88;
+            const y = H * 0.05 + rand() * H * 0.37;
+            const r = 0.5 + rand() * 1.1;
+            ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // 거미줄 — 좌상단/우하단 코너에만 제한
+        const drawWeb = (ox, oy, sx, sy, radius) => {
+            ctx.strokeStyle = theme.accent;
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.62;
+            for (let deg = 0; deg <= 90; deg += 18) {
+                const a = deg * Math.PI / 180;
+                ctx.beginPath();
+                ctx.moveTo(ox, oy);
+                ctx.lineTo(ox + sx * Math.cos(a) * radius, oy + sy * Math.sin(a) * radius);
+                ctx.stroke();
+            }
+            [0.23, 0.45, 0.69, 0.94].forEach(m => {
+                ctx.globalAlpha = 0.48;
+                ctx.beginPath();
+                for (let deg = 0; deg <= 90; deg += 5) {
+                    const a = deg * Math.PI / 180;
+                    const x = ox + sx * Math.cos(a) * radius * m;
+                    const y = oy + sy * Math.sin(a) * radius * m;
+                    deg === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            });
+        };
+        drawWeb(0, 0, 1, 1, Math.min(W, H) * 0.24);
+        drawWeb(W, H, -1, -1, Math.min(W, H) * 0.22);
+
+        // 뉴욕 스카이라인 — 하단에만 배치
+        const baseY = H * 0.79;
+        const buildingCount = 12;
+        let bx = 0;
+        ctx.globalAlpha = 0.96;
+        for (let i = 0; i < buildingCount; i++) {
+            const bw = W / buildingCount + (rand() - 0.5) * W * 0.025;
+            const bh = H * (0.10 + rand() * 0.15);
+            const by = H - bh;
+            ctx.fillStyle = i % 3 === 0 ? '#081220' : (i % 3 === 1 ? '#030b14' : '#101a2b');
+            ctx.fillRect(bx, by, bw + 1, H - by);
+            ctx.fillStyle = theme.accent2;
+            for (let wy = by + 13; wy < H - 12; wy += 18) {
+                for (let wx = bx + 10; wx < bx + bw - 6; wx += 16) {
+                    if (rand() > 0.68) {
+                        ctx.globalAlpha = 0.50;
+                        ctx.fillRect(wx, wy, 3, 4);
+                    }
+                }
+            }
+            ctx.globalAlpha = 0.96;
+            bx += bw;
+        }
+
+        // 작은 테마 라벨
+        const labelSize = Math.max(8, Math.round(Math.min(W, H) * 0.018));
+        ctx.globalAlpha = 0.92;
+        ctx.fillStyle = '#f3f5f4';
+        ctx.font = `700 ${labelSize}px Arial, sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText('QUEENS / AFTER DARK', W * 0.08, H * 0.105);
+        ctx.fillStyle = theme.accent;
+        ctx.globalAlpha = 0.8;
+        ctx.font = `700 ${Math.max(7, labelSize - 2)}px Arial, sans-serif`;
+        ctx.fillText('NEW YORK · 02:17 AM', W * 0.08, H * 0.15);
+        ctx.strokeStyle = theme.accent;
+        ctx.globalAlpha = 0.58;
+        ctx.beginPath(); ctx.moveTo(W * 0.08, H * 0.17); ctx.lineTo(W * 0.31, H * 0.17); ctx.stroke();
 
     } else if (theme.deco === 'soap_bubble') {
         // ── 비눗방울: 흰+하늘색 그라디언트 + 반투명 버블 ──
