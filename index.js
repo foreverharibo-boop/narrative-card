@@ -795,10 +795,8 @@ function removeAddBtn() {
 // 웹페이지 안의 다른 확장 팝업은 실제 사각형 충돌을 검사해 추가로 피한다.
 function isTouchSelectionDevice() {
     try {
-        // maxTouchPoints만 사용하면 터치스크린이 달린 데스크톱/노트북도
-        // 모바일로 오인한다. 현재 기본 입력 장치가 실제로 터치형일 때만
-        // 시스템 선택 도구막대용 여백과 충돌 회피를 적용한다.
-        return window.matchMedia?.('(hover: none) and (pointer: coarse)').matches === true;
+        return navigator.maxTouchPoints > 0
+            || window.matchMedia?.('(hover: none), (pointer: coarse)').matches;
     } catch (_) {
         return false;
     }
@@ -848,13 +846,14 @@ function repositionAddBtn(btn) {
     const anchorY = Number(btn.dataset.anchorY);
     const selectionBottom = Number(btn.dataset.selectionBottom);
     const touchMode = isTouchSelectionDevice();
-    // Galaxy의 시스템 텍스트 선택 팝업이 선택문 위를 넓게 차지하므로
-    // 모바일에서만 버튼을 추가로 76px 올린다. PC에는 적용되지 않는다.
-    const touchReserve = touchMode ? 76 : 0;
+    const touchReserve = touchMode ? 44 : 0;
 
     let left = Math.max(edge, Math.min(anchorX - size / 2, window.innerWidth - size - edge));
-    // PC에서는 선택 영역의 윗변으로부터 정확히 8px 위에 붙인다.
-    let top = anchorY - size - gap - touchReserve;
+    // 모바일은 최초 원본 위치값(12px 간격 + 44px 확보)을 그대로 사용하고,
+    // PC만 선택 영역 바로 위 8px 위치를 사용한다.
+    let top = touchMode
+        ? anchorY - size - 12 - touchReserve
+        : anchorY - size - gap;
 
     // 화면 위쪽에 공간이 없으면 시스템 선택 메뉴와 함께 뭉치지 않도록 아래로 보낸다.
     if (top < edge && Number.isFinite(selectionBottom)) {
@@ -1081,7 +1080,10 @@ function handleSelectionEnd(e) {
         const x = rect.left + rect.width / 2;
 
         // 타 확장의 떠있는 모달 안이라면 버튼도 그 모달 안에 넣어 가려지지 않게 함
-        showAddBtn(x, rect.top, text, mesEl, findOverlayHost(anchorEl), rect.bottom);
+        // 모바일 anchorY도 최초 원본처럼 선택 영역보다 8px 위를 전달한다.
+        // PC에만 선택 영역의 실제 윗변을 그대로 전달한다.
+        const anchorY = isTouchSelectionDevice() ? rect.top - 8 : rect.top;
+        showAddBtn(x, anchorY, text, mesEl, findOverlayHost(anchorEl), rect.bottom);
     }, 30);
 }
 
