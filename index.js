@@ -848,7 +848,9 @@ function repositionAddBtn(btn) {
     const anchorY = Number(btn.dataset.anchorY);
     const selectionBottom = Number(btn.dataset.selectionBottom);
     const touchMode = isTouchSelectionDevice();
-    const touchReserve = touchMode ? 44 : 0;
+    // Galaxy의 시스템 텍스트 선택 팝업이 선택문 위를 넓게 차지하므로
+    // 모바일에서만 버튼을 추가로 76px 올린다. PC에는 적용되지 않는다.
+    const touchReserve = touchMode ? 76 : 0;
 
     let left = Math.max(edge, Math.min(anchorX - size / 2, window.innerWidth - size - edge));
     // PC에서는 선택 영역의 윗변으로부터 정확히 8px 위에 붙인다.
