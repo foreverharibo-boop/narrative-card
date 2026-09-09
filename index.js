@@ -795,8 +795,10 @@ function removeAddBtn() {
 // 웹페이지 안의 다른 확장 팝업은 실제 사각형 충돌을 검사해 추가로 피한다.
 function isTouchSelectionDevice() {
     try {
-        return navigator.maxTouchPoints > 0
-            || window.matchMedia?.('(hover: none), (pointer: coarse)').matches;
+        // maxTouchPoints만 사용하면 터치스크린이 달린 데스크톱/노트북도
+        // 모바일로 오인한다. 현재 기본 입력 장치가 실제로 터치형일 때만
+        // 시스템 선택 도구막대용 여백과 충돌 회피를 적용한다.
+        return window.matchMedia?.('(hover: none) and (pointer: coarse)').matches === true;
     } catch (_) {
         return false;
     }
@@ -845,10 +847,12 @@ function repositionAddBtn(btn) {
     const anchorX = Number(btn.dataset.anchorX);
     const anchorY = Number(btn.dataset.anchorY);
     const selectionBottom = Number(btn.dataset.selectionBottom);
-    const touchReserve = isTouchSelectionDevice() ? 44 : 0;
+    const touchMode = isTouchSelectionDevice();
+    const touchReserve = touchMode ? 44 : 0;
 
     let left = Math.max(edge, Math.min(anchorX - size / 2, window.innerWidth - size - edge));
-    let top = anchorY - size - 12 - touchReserve;
+    // PC에서는 선택 영역의 윗변으로부터 정확히 8px 위에 붙인다.
+    let top = anchorY - size - gap - touchReserve;
 
     // 화면 위쪽에 공간이 없으면 시스템 선택 메뉴와 함께 뭉치지 않도록 아래로 보낸다.
     if (top < edge && Number.isFinite(selectionBottom)) {
@@ -856,18 +860,22 @@ function repositionAddBtn(btn) {
     }
     top = Math.max(edge, Math.min(top, window.innerHeight - size - edge));
 
-    // 겹치는 DOM 팝업이 여러 장 쌓여 있어도 차례로 모두 넘어간다.
-    for (let i = 0; i < 6; i++) {
-        const probe = { left, top, right: left + size, bottom: top + size };
-        const collisions = popupRectsOverlapping(probe, btn);
-        if (!collisions.length) break;
+    // 모바일에서만 시스템/확장 선택 도구막대를 피한다. PC에서 이 로직을
+    // 돌리면 SillyTavern의 고정 레이아웃까지 팝업으로 오인해 버튼이
+    // 선택문보다 한참 아래로 밀릴 수 있다.
+    if (touchMode) {
+        for (let i = 0; i < 6; i++) {
+            const probe = { left, top, right: left + size, bottom: top + size };
+            const collisions = popupRectsOverlapping(probe, btn);
+            if (!collisions.length) break;
 
-        const nextTop = Math.min(...collisions.map(r => r.top)) - size - gap;
-        if (nextTop >= edge) {
-            top = nextTop;
-        } else {
-            const nextBottom = Math.max(...collisions.map(r => r.bottom)) + gap;
-            top = Math.min(nextBottom, window.innerHeight - size - edge);
+            const nextTop = Math.min(...collisions.map(r => r.top)) - size - gap;
+            if (nextTop >= edge) {
+                top = nextTop;
+            } else {
+                const nextBottom = Math.max(...collisions.map(r => r.bottom)) + gap;
+                top = Math.min(nextBottom, window.innerHeight - size - edge);
+            }
         }
     }
 
@@ -1071,7 +1079,7 @@ function handleSelectionEnd(e) {
         const x = rect.left + rect.width / 2;
 
         // 타 확장의 떠있는 모달 안이라면 버튼도 그 모달 안에 넣어 가려지지 않게 함
-        showAddBtn(x, rect.top - 8, text, mesEl, findOverlayHost(anchorEl), rect.bottom);
+        showAddBtn(x, rect.top, text, mesEl, findOverlayHost(anchorEl), rect.bottom);
     }, 30);
 }
 
