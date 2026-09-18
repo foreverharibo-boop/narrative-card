@@ -1555,11 +1555,11 @@ function openPreviewPopup(mesEl) {
     // (모바일 브라우저는 네이티브 select의 option에 font-family를 줘도
     //  시스템 기본 폰트로만 보여주는 경우가 많아서, 직접 그려서 확실하게 반영함)
     const fontFieldWrap = document.createElement('div');
-    fontFieldWrap.style.cssText = 'position:relative;flex:1;min-width:0;';
+    fontFieldWrap.style.cssText = 'position:relative;flex:1;min-width:0;height:30px;margin:0!important;';
 
     const fontBtn = document.createElement('button');
     fontBtn.type = 'button';
-    fontBtn.style.cssText = 'width:100%;height:30px;min-height:30px;box-sizing:border-box;overflow:hidden;text-align:left;background:#ffffff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:7px;padding:3px 7px;font-size:11px;line-height:1.2;display:flex;justify-content:space-between;align-items:center;cursor:pointer;';
+    fontBtn.style.cssText = 'width:100%;height:30px!important;min-height:30px!important;max-height:30px!important;margin:0!important;box-sizing:border-box!important;overflow:hidden;text-align:left;background:#ffffff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:7px;padding:3px 7px!important;font-size:11px;line-height:1.2!important;display:flex;justify-content:space-between;align-items:center;cursor:pointer;vertical-align:middle;';
 
     const fontBtnLabel = document.createElement('span');
     fontBtnLabel.style.cssText = 'display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2;';
