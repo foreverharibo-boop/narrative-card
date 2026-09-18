@@ -742,6 +742,7 @@ const DEFAULTS = {
     theme: 'dark',
     font_size: 100,   // 100 = 기준치 (%)
     ratio: 'landscape',
+    preset_enabled: false,
 };
 
 function getExtSettings() {
@@ -996,8 +997,27 @@ function findOverlayHost(el) {
 // 마지막으로 + 버튼이 붙었던 오버레이 호스트 — 발췌/옵션/결과 팝업도
 // 같은 곳에 붙여야 타 확장 모달 위에 뜬다 (모달을 닫지 않아도 보이도록)
 let _lastOverlayHost = null;
+
+function isActuallyVisible(el) {
+    if (!el?.isConnected) return false;
+    let cur = el;
+    while (cur && cur.nodeType === Node.ELEMENT_NODE) {
+        if (cur.hidden || cur.getAttribute?.('aria-hidden') === 'true') return false;
+        try {
+            const cs = getComputedStyle(cur);
+            if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) return false;
+        } catch (_) {
+            return false;
+        }
+        cur = cur.parentElement;
+    }
+    return true;
+}
+
 function popupHost() {
-    return (_lastOverlayHost && _lastOverlayHost.isConnected) ? _lastOverlayHost : document.body;
+    if (_lastOverlayHost && isActuallyVisible(_lastOverlayHost)) return _lastOverlayHost;
+    _lastOverlayHost = null;
+    return document.body;
 }
 
 function showBtnForTextarea(el, selText) {
@@ -1402,6 +1422,99 @@ function openPreviewPopup(mesEl) {
         row.appendChild(lbl);
         row.appendChild(contentEl);
         return row;
+    }
+
+    // 프리셋은 사용자가 확장 설정에서 켠 경우에만 표시한다.
+    // 배경 사진까지 포함해 IndexedDB에 저장하므로 settings.json이 커지지 않는다.
+    if (c.preset_enabled) {
+        const presetPanel = document.createElement('div');
+        presetPanel.style.cssText = 'display:flex;flex-direction:column;gap:7px;padding:9px;border:1px solid rgba(0,0,0,0.12);border-radius:9px;background:#faf8f3;';
+
+        const presetSelect = document.createElement('select');
+        presetSelect.style.cssText = 'width:100%;background:#fff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:7px;padding:6px 8px;font-size:12px;';
+
+        const presetName = document.createElement('input');
+        presetName.type = 'text';
+        presetName.placeholder = '프리셋 이름';
+        presetName.maxLength = 60;
+        presetName.style.cssText = 'min-width:0;flex:1;background:#fff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:7px;padding:6px 8px;font-size:12px;';
+
+        const buttonRow = document.createElement('div');
+        buttonRow.style.cssText = 'display:flex;gap:5px;align-items:center;';
+        const loadBtn = document.createElement('button');
+        loadBtn.type = 'button';
+        loadBtn.textContent = '불러오기';
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.textContent = '저장';
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.textContent = '삭제';
+        [loadBtn, saveBtn, deleteBtn].forEach(btn => {
+            btn.style.cssText = 'flex:0 0 auto;border:1px solid rgba(0,0,0,0.16);border-radius:7px;background:#fff;color:#1c1a17;padding:6px 9px;font-size:11px;cursor:pointer;';
+        });
+        buttonRow.appendChild(presetName);
+        buttonRow.appendChild(loadBtn);
+        buttonRow.appendChild(saveBtn);
+        buttonRow.appendChild(deleteBtn);
+
+        async function refreshPresetSelect(preferredId = '') {
+            const presets = await getAllPresets();
+            presetSelect.innerHTML = '';
+            const empty = document.createElement('option');
+            empty.value = '';
+            empty.textContent = presets.length ? '저장된 프리셋 선택' : '저장된 프리셋 없음';
+            presetSelect.appendChild(empty);
+            presets.forEach(preset => {
+                const opt = document.createElement('option');
+                opt.value = preset.id;
+                opt.textContent = preset.name;
+                presetSelect.appendChild(opt);
+            });
+            if (preferredId && presets.some(p => p.id === preferredId)) {
+                presetSelect.value = preferredId;
+                const selected = presets.find(p => p.id === preferredId);
+                presetName.value = selected?.name || '';
+            }
+        }
+
+        presetSelect.addEventListener('change', () => {
+            presetName.value = presetSelect.selectedOptions[0]?.textContent || '';
+            if (!presetSelect.value) presetName.value = '';
+        });
+
+        loadBtn.addEventListener('click', async () => {
+            if (!presetSelect.value) { toastr.info('불러올 프리셋을 선택해주세요.'); return; }
+            const restored = await loadPresetState(presetSelect.value);
+            if (!restored) { toastr.error('프리셋을 불러오지 못했습니다.'); return; }
+            _pendingEditMeta = restored;
+            overlay.remove();
+            openPreviewPopup(mesEl);
+            toastr.success('프리셋을 불러왔어요.', '', { timeOut: 1400 });
+        });
+
+        saveBtn.addEventListener('click', async () => {
+            const name = presetName.value.trim();
+            if (!name) { toastr.warning('프리셋 이름을 입력해주세요.'); presetName.focus(); return; }
+            const id = await savePreset(name, _previewState, presetSelect.value || null);
+            await refreshPresetSelect(id);
+            toastr.success('프리셋을 저장했어요.', '', { timeOut: 1400 });
+        });
+
+        deleteBtn.addEventListener('click', async () => {
+            if (!presetSelect.value) { toastr.info('삭제할 프리셋을 선택해주세요.'); return; }
+            const name = presetSelect.selectedOptions[0]?.textContent || '이 프리셋';
+            if (!window.confirm(`“${name}” 프리셋을 삭제할까요?`)) return;
+            await deletePreset(presetSelect.value);
+            presetName.value = '';
+            await refreshPresetSelect();
+            toastr.success('프리셋을 삭제했어요.', '', { timeOut: 1400 });
+        });
+
+        presetPanel.appendChild(presetSelect);
+        presetPanel.appendChild(buttonRow);
+        body.appendChild(ctrlRow('프리셋', presetPanel));
+        refreshPresetSelect().catch(e => console.warn('[NarrativeCard] 프리셋 목록 불러오기 실패:', e));
     }
 
     // 0) 캐릭터 이름 (카드 하단에 표시됨, 수정 가능)
@@ -3074,70 +3187,340 @@ function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, rati
 // ── 인라인 표시 (비활성화: 갤러리에서만 보기)
 function showCardInline(mesEl, dataUrl) { /* 비활성화 */ }
 
-// ── 갤러리 저장/불러오기 ──────────────────────────────────
-// extension_settings는 SillyTavern이 계정별로 서버의 settings.json에 실제로
-// 저장해주는 공식 저장소라서, 같은 계정으로 접속하면 PC/폰 어디서든 동기화됨.
-function galleryStore() {
-    if (!extension_settings[EXT]) extension_settings[EXT] = {};
-    if (!extension_settings[EXT].gallery) {
-        extension_settings[EXT].gallery = { index: [], cards: {} };
+// ── 갤러리/프리셋 DB 저장 ─────────────────────────────────
+// PNG를 Base64 문자열로 extension_settings에 넣으면 원본보다 약 33% 커지고
+// settings 백업에도 반복 포함된다. 카드와 배경 이미지는 IndexedDB Blob으로
+// 저장하고, 작고 단순한 기능 토글만 extension_settings에 남긴다.
+const NCARD_DB_NAME = 'NarrativeCardGallery';
+const NCARD_DB_VERSION = 2;
+const CARD_STORE = 'cards';
+const PRESET_STORE = 'presets';
+const SETTINGS_MIGRATION_FLAG = 'ncard_settings_gallery_to_idb_v1';
+let _ncardDbPromise = null;
+
+function openNarrativeDb() {
+    if (_ncardDbPromise) return _ncardDbPromise;
+    _ncardDbPromise = new Promise((resolve, reject) => {
+        const req = indexedDB.open(NCARD_DB_NAME, NCARD_DB_VERSION);
+        req.onupgradeneeded = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains(CARD_STORE)) {
+                const cards = db.createObjectStore(CARD_STORE, { keyPath: 'id' });
+                cards.createIndex('createdAt', 'createdAt');
+                cards.createIndex('charName', 'charName');
+            }
+            if (!db.objectStoreNames.contains(PRESET_STORE)) {
+                const presets = db.createObjectStore(PRESET_STORE, { keyPath: 'id' });
+                presets.createIndex('updatedAt', 'updatedAt');
+                presets.createIndex('name', 'name');
+            }
+        };
+        req.onsuccess = () => {
+            const db = req.result;
+            db.onversionchange = () => {
+                db.close();
+                _ncardDbPromise = null;
+            };
+            resolve(db);
+        };
+        req.onerror = () => {
+            _ncardDbPromise = null;
+            reject(req.error || new Error('Narrative Card DB를 열 수 없습니다.'));
+        };
+        req.onblocked = () => console.warn('[NarrativeCard] DB 업그레이드가 다른 탭에 의해 대기 중입니다.');
+    });
+    return _ncardDbPromise;
+}
+
+function idbRequest(req) {
+    return new Promise((resolve, reject) => {
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function idbPut(storeName, value) {
+    const db = await openNarrativeDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        tx.objectStore(storeName).put(value);
+        tx.oncomplete = () => resolve(value);
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error('DB 저장이 중단되었습니다.'));
+    });
+}
+
+async function idbDelete(storeName, id) {
+    const db = await openNarrativeDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        tx.objectStore(storeName).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error('DB 삭제가 중단되었습니다.'));
+    });
+}
+
+async function idbGet(storeName, id) {
+    const db = await openNarrativeDb();
+    const tx = db.transaction(storeName, 'readonly');
+    return idbRequest(tx.objectStore(storeName).get(id));
+}
+
+async function idbGetAll(storeName) {
+    const db = await openNarrativeDb();
+    const tx = db.transaction(storeName, 'readonly');
+    return idbRequest(tx.objectStore(storeName).getAll());
+}
+
+function dataUrlToBlob(dataUrl) {
+    if (dataUrl instanceof Blob) return dataUrl;
+    if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) return null;
+    const comma = dataUrl.indexOf(',');
+    if (comma < 0) return null;
+    const head = dataUrl.slice(0, comma);
+    const mime = head.match(/^data:([^;,]+)/)?.[1] || 'application/octet-stream';
+    const payload = dataUrl.slice(comma + 1);
+    if (/;base64/i.test(head)) {
+        const binary = atob(payload);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return new Blob([bytes], { type: mime });
     }
-    return extension_settings[EXT].gallery;
+    return new Blob([decodeURIComponent(payload)], { type: mime });
+}
+
+function blobToDataUrl(blob) {
+    if (!blob) return Promise.resolve(null);
+    if (typeof blob === 'string') return Promise.resolve(blob);
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+    });
+}
+
+async function imageElementToBlob(img) {
+    const src = img?.src;
+    if (!src) return null;
+    const direct = dataUrlToBlob(src);
+    if (direct) return direct;
+    try {
+        const response = await fetch(src);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.blob();
+    } catch (e) {
+        console.warn('[NarrativeCard] 배경 이미지 Blob 변환 실패:', e);
+        return null;
+    }
+}
+
+function imageFromSource(src) {
+    if (!src) return Promise.resolve(null);
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = src;
+    });
+}
+
+async function prepareMetaForDb(meta) {
+    const safeMeta = {
+        ...(meta || {}),
+        cardData: meta?.cardData ? { ...meta.cardData, lines: (meta.cardData.lines || []).map(line => ({ ...line })) } : { lines: [] },
+        style: { ...(meta?.style || {}) },
+    };
+    const backgroundSource = safeMeta.style.bgImageDataUrl;
+    delete safeMeta.style.bgImageDataUrl;
+    safeMeta.style.backgroundBlob = backgroundSource
+        ? await imageElementToBlob({ src: backgroundSource })
+        : null;
+    return safeMeta;
+}
+
+async function hydrateCardRecord(record) {
+    const imageSource = record.imageBlob ? await blobToDataUrl(record.imageBlob) : record.dataUrl;
+    const meta = {
+        ...(record.meta || {}),
+        cardData: record.meta?.cardData ? { ...record.meta.cardData, lines: (record.meta.cardData.lines || []).map(line => ({ ...line })) } : { lines: [] },
+        style: { ...(record.meta?.style || {}) },
+    };
+    if (meta.style.backgroundBlob) {
+        meta.style.bgImageDataUrl = await blobToDataUrl(meta.style.backgroundBlob);
+        delete meta.style.backgroundBlob;
+    }
+    return { ...record, dataUrl: imageSource, meta };
 }
 
 async function saveToGallery(charName, dataUrl, meta) {
     try {
-        const store = galleryStore();
         const id = Date.now() + '_' + Math.floor(Math.random() * 1e6);
         const createdAt = Date.now();
-        store.cards[id] = { id, charName, dataUrl, meta, createdAt };
-        store.index.unshift({ id, charName, createdAt });
-        saveSettingsDebounced();
+        await idbPut(CARD_STORE, {
+            id, charName, createdAt,
+            imageBlob: dataUrlToBlob(dataUrl),
+            meta: await prepareMetaForDb(meta),
+        });
         return id;
     } catch (e) {
-        console.warn('[NarrativeCard] 갤러리 저장 실패:', e);
-        return null;
+        console.warn('[NarrativeCard] 갤러리 DB 저장 실패:', e);
+        throw e;
     }
 }
 
 async function updateGalleryItem(id, dataUrl, meta, charName) {
     try {
-        const store = galleryStore();
-        const existing = store.cards[id];
-        const createdAt = existing ? existing.createdAt : Date.now();
-        store.cards[id] = { id, charName, dataUrl, meta, createdAt };
-        const entry = store.index.find(x => x.id === id);
-        if (entry) entry.charName = charName;
-        else store.index.unshift({ id, charName, createdAt });
-        saveSettingsDebounced();
+        const existing = await idbGet(CARD_STORE, id);
+        await idbPut(CARD_STORE, {
+            id, charName,
+            createdAt: existing?.createdAt || Date.now(),
+            imageBlob: dataUrlToBlob(dataUrl),
+            meta: await prepareMetaForDb(meta),
+        });
         return id;
     } catch (e) {
-        console.warn('[NarrativeCard] 갤러리 수정 실패:', e);
-        return null;
+        console.warn('[NarrativeCard] 갤러리 DB 수정 실패:', e);
+        throw e;
     }
 }
 
 async function deleteCard(id) {
     try {
-        const store = galleryStore();
-        delete store.cards[id];
-        store.index = store.index.filter(e => e.id !== id);
-        saveSettingsDebounced();
+        await idbDelete(CARD_STORE, id);
     } catch (e) {
-        console.warn('[NarrativeCard] 삭제 실패:', e);
+        console.warn('[NarrativeCard] DB 카드 삭제 실패:', e);
+        throw e;
     }
 }
 
 async function getAllCards() {
     try {
-        const store = galleryStore();
-        return store.index
-            .map(entry => store.cards[entry.id])
-            .filter(Boolean);
+        const records = await idbGetAll(CARD_STORE);
+        records.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        return await Promise.all(records.map(hydrateCardRecord));
     } catch (e) {
-        console.warn('[NarrativeCard] 갤러리 불러오기 실패:', e);
+        console.warn('[NarrativeCard] DB 갤러리 불러오기 실패:', e);
         return [];
     }
+}
+
+async function serializePresetState(state) {
+    return {
+        theme: state.theme,
+        fontSize: state.fontSize,
+        ratio: state.ratio,
+        textColor: state.textColor ?? null,
+        bgColor: state.bgColor ?? null,
+        overlayOpacity: state.overlayOpacity ?? 50,
+        charName: state.charName ?? '',
+        markColor: state.markColor ?? null,
+        fontFamily: state.fontFamily || 'noto_serif',
+        backgroundBlob: await imageElementToBlob(state.bgImage),
+    };
+}
+
+async function savePreset(name, state, existingId = null) {
+    const now = Date.now();
+    const old = existingId ? await idbGet(PRESET_STORE, existingId) : null;
+    const id = old?.id || `preset_${now}_${Math.floor(Math.random() * 1e6)}`;
+    await idbPut(PRESET_STORE, {
+        id,
+        name,
+        createdAt: old?.createdAt || now,
+        updatedAt: now,
+        state: await serializePresetState(state),
+    });
+    return id;
+}
+
+async function getAllPresets() {
+    const presets = await idbGetAll(PRESET_STORE);
+    return presets.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+
+async function loadPresetState(id) {
+    const preset = await idbGet(PRESET_STORE, id);
+    if (!preset?.state) return null;
+    const { backgroundBlob, ...state } = preset.state;
+    if (backgroundBlob) {
+        state.bgImage = await imageFromSource(await blobToDataUrl(backgroundBlob));
+    } else {
+        state.bgImage = null;
+    }
+    return state;
+}
+
+async function deletePreset(id) {
+    await idbDelete(PRESET_STORE, id);
+}
+
+async function migrateLegacySettingsGallery(force = false) {
+    if (!extension_settings[EXT]) extension_settings[EXT] = {};
+    const settings = extension_settings[EXT];
+    if (settings[SETTINGS_MIGRATION_FLAG] && !force) return 0;
+    const legacy = settings.gallery;
+    if (!legacy?.cards) {
+        settings[SETTINGS_MIGRATION_FLAG] = true;
+        saveSettingsDebounced();
+        return 0;
+    }
+
+    const orderedIds = (legacy.index || []).map(entry => String(entry.id));
+    Object.keys(legacy.cards).forEach(id => {
+        if (!orderedIds.includes(String(id))) orderedIds.push(String(id));
+    });
+    const existingRecords = await idbGetAll(CARD_STORE);
+    let migrated = 0;
+    for (const id of orderedIds) {
+        const old = legacy.cards[id];
+        if (!old) continue;
+        const imageBlob = dataUrlToBlob(old.dataUrl);
+        if (!imageBlob) continue;
+        // v1은 같은 DB의 카드를 settings로 복사하되 원본 DB를 남겨뒀다.
+        // 되돌려 가져올 때 id가 달라도 동일 카드면 중복 생성하지 않는다.
+        const alreadyExists = existingRecords.some(record =>
+            String(record.id) === String(id)
+            || (record.dataUrl && record.dataUrl === old.dataUrl
+                && (record.createdAt || 0) === (old.createdAt || 0))
+            || (record.imageBlob?.size === imageBlob.size
+                && (record.createdAt || 0) === (old.createdAt || 0)
+                && (record.charName || '') === (old.charName || ''))
+        );
+        if (alreadyExists) continue;
+        await idbPut(CARD_STORE, {
+            id,
+            charName: old.charName || '',
+            createdAt: old.createdAt || Date.now(),
+            imageBlob,
+            meta: await prepareMetaForDb(old.meta || {}),
+        });
+        existingRecords.push({ id, charName: old.charName || '', createdAt: old.createdAt || 0, imageBlob });
+        migrated++;
+    }
+    settings[SETTINGS_MIGRATION_FLAG] = true;
+    saveSettingsDebounced();
+    if (migrated > 0) console.log(`[NarrativeCard] 기존 설정 저장 카드 ${migrated}개를 DB로 복사했습니다.`);
+    return migrated;
+}
+
+function legacyGalleryStats() {
+    const gallery = extension_settings[EXT]?.gallery;
+    const cards = gallery?.cards ? Object.values(gallery.cards) : [];
+    const bytes = cards.reduce((sum, card) => sum + (typeof card?.dataUrl === 'string' ? card.dataUrl.length : 0), 0);
+    return { count: cards.length, bytes };
+}
+
+async function clearLegacyGalleryStorage() {
+    // 정리 직전에는 플래그와 관계없이 한 번 더 대조해 누락 카드 삭제를 막는다.
+    await migrateLegacySettingsGallery(true);
+    const stats = legacyGalleryStats();
+    if (extension_settings[EXT]?.gallery) {
+        delete extension_settings[EXT].gallery;
+        saveSettingsDebounced();
+    }
+    return stats;
 }
 
 // ── 갤러리 모달 ──────────────────────────────────────────
@@ -3247,12 +3630,22 @@ async function startEditCard(c) {
 }
 
 async function openGallery() {
-    // 이미 갤러리가 열려있으면 중복으로 새로 열지 않음 (모바일 터치+클릭 중복 이벤트 방지)
-    if (document.getElementById('ncard-gallery-modal')) return;
+    // 다른 ST 창 안에 붙은 채 그 부모만 숨겨진 이전 갤러리가 있으면 제거한다.
+    // 기존 코드는 isConnected만 확인해서, 숨은 창 안에 새 갤러리를 계속 붙이는 문제가 있었다.
+    const stale = document.getElementById('ncard-gallery-modal');
+    if (stale) {
+        if (isActuallyVisible(stale)) return;
+        stale.remove();
+    }
 
+    await migrateLegacySettingsGallery();
     const cards = await getAllCards();
     // await 중 중복 호출이 있었을 수도 있으니 한 번 더 확인
-    if (document.getElementById('ncard-gallery-modal')) return;
+    const concurrent = document.getElementById('ncard-gallery-modal');
+    if (concurrent) {
+        if (isActuallyVisible(concurrent)) return;
+        concurrent.remove();
+    }
 
     const overlay = document.createElement('div');
     overlay.id = 'ncard-gallery-modal';
@@ -3376,7 +3769,8 @@ async function openGallery() {
     if (charNames.length > 0) modal.appendChild(filterRow);
     modal.appendChild(grid);
     overlay.appendChild(modal);
-    popupHost().appendChild(overlay);
+    // 마법봉/설정에서 여는 갤러리는 다른 팝업의 수명주기에 종속되면 안 된다.
+    document.body.appendChild(overlay);
 }
 
 // ── 설정 패널 ─────────────────────────────────────────────
@@ -3417,6 +3811,19 @@ function buildSettingsHtml() {
         </div>
       </div>
 
+      <div class="ncard-field">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="ncard-preset-enabled" ${c.preset_enabled ? 'checked' : ''} />
+          <span>프리셋 저장 기능 사용</span>
+        </label>
+        <small style="display:block;margin-top:4px;opacity:.7;line-height:1.4;">켜면 카드 옵션창에서 모든 옵션을 저장하고 불러올 수 있습니다.</small>
+      </div>
+
+      <div class="ncard-field">
+        <button id="ncard-clean-legacy" class="menu_button" style="width:100%;white-space:normal;">🧹 기존 이미지 저장 데이터 정리</button>
+        <small id="ncard-clean-legacy-info" style="display:block;margin-top:4px;opacity:.7;line-height:1.4;"></small>
+      </div>
+
       <div class="ncard-field" style="display:flex; gap:8px; width:100%;">
         <button id="ncard-save-settings" class="menu_button" style="flex:1 1 0; min-width:0; white-space:nowrap;">저장</button>
         <button id="ncard-open-gallery" class="menu_button" style="flex:1 1 0; min-width:0; white-space:nowrap;">갤러리 열기</button>
@@ -3439,12 +3846,37 @@ function bindSettingsEvents() {
         s.theme = $('#ncard-theme').val();
         s.ratio = $('#ncard-ratio').val();
         s.font_size = parseInt($('#ncard-font-size').val(), 10) || 100;
+        s.preset_enabled = $('#ncard-preset-enabled').prop('checked');
         saveSettingsDebounced();
         toastr.success('설정 저장됨', '', { timeOut: 1500 });
     };
 
     $('#ncard-save-settings').on('click', save);
     $('#ncard-open-gallery').on('click', openGallery);
+
+    const updateLegacyInfo = () => {
+        const stats = legacyGalleryStats();
+        const mb = stats.bytes ? ` · 약 ${(stats.bytes / 1024 / 1024).toFixed(1)}MB` : '';
+        $('#ncard-clean-legacy-info').text(stats.count
+            ? `기존 설정 저장 이미지 ${stats.count}개${mb} (DB 카드에는 영향 없음)`
+            : '정리할 기존 이미지 저장 데이터가 없습니다.');
+        $('#ncard-clean-legacy').prop('disabled', stats.count === 0);
+    };
+    updateLegacyInfo();
+
+    $('#ncard-clean-legacy').on('click', async () => {
+        const stats = legacyGalleryStats();
+        if (!stats.count) { updateLegacyInfo(); return; }
+        if (!window.confirm(`기존 방식으로 저장된 이미지 ${stats.count}개를 정리할까요?\n먼저 DB에 복사한 뒤 기존 데이터만 삭제합니다.`)) return;
+        try {
+            const removed = await clearLegacyGalleryStorage();
+            updateLegacyInfo();
+            toastr.success(`기존 이미지 저장 데이터 ${removed.count}개를 정리했어요.`, '', { timeOut: 2500 });
+        } catch (e) {
+            console.error('[NarrativeCard] 기존 이미지 정리 실패:', e);
+            toastr.error('기존 이미지 정리에 실패했습니다. 콘솔을 확인해주세요.');
+        }
+    });
 }
 
 // ── Wand 메뉴 주입 ────────────────────────────────────────
@@ -3466,10 +3898,13 @@ function injectWandMenu() {
             e.preventDefault();
             e.stopPropagation();
             document.getElementById('extensionsMenu')?.classList.remove('open');
+            _lastOverlayHost = null;
             openGallery();
         };
         li.addEventListener('click', openG);
-        li.addEventListener('touchend', openG);
+        li.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') openG(e);
+        });
 
         const firstItem = menu.firstElementChild;
         if (firstItem) menu.insertBefore(li, firstItem);
@@ -3493,83 +3928,6 @@ function injectWandMenu() {
 }
 
 // ── 초기화 ───────────────────────────────────────────────
-// ── 예전 IndexedDB 갤러리 → 새 서버(계정) 저장소로 마이그레이션 ───
-// (예전 버전에서 브라우저 로컬(IndexedDB)에만 저장되던 카드들을
-//  extension_settings 기반 서버 저장소로 한 번만 복사해옴)
-async function migrateOldIndexedDbGallery() {
-    const OLD_DB_NAME = 'NarrativeCardGallery';
-    const OLD_STORE_NAME = 'cards';
-    const MIGRATION_FLAG = 'ncard_idb_migrated';
-
-    if (extension_settings[EXT]?.[MIGRATION_FLAG]) return; // 이미 마이그레이션 완료
-
-    let dbExists = true;
-    try {
-        // 기존 DB가 없으면 여기서 새로 생성돼버리므로, databases() 목록으로 먼저 존재 여부 확인
-        if (indexedDB.databases) {
-            const dbs = await indexedDB.databases();
-            dbExists = dbs.some(d => d.name === OLD_DB_NAME);
-        }
-    } catch (_) { /* databases() 미지원 브라우저면 그냥 진행 */ }
-
-    if (!dbExists) {
-        if (!extension_settings[EXT]) extension_settings[EXT] = {};
-        extension_settings[EXT][MIGRATION_FLAG] = true;
-        saveSettingsDebounced();
-        return;
-    }
-
-    try {
-        const oldItems = await new Promise((resolve, reject) => {
-            const req = indexedDB.open(OLD_DB_NAME, 1);
-            req.onupgradeneeded = () => {
-                // 옛 스토어가 없는 상태로 새로 열리는 경우 → 마이그레이션할 게 없음
-                const db = req.result;
-                if (!db.objectStoreNames.contains(OLD_STORE_NAME)) {
-                    db.createObjectStore(OLD_STORE_NAME, { keyPath: 'id', autoIncrement: true });
-                }
-            };
-            req.onsuccess = () => {
-                const db = req.result;
-                if (!db.objectStoreNames.contains(OLD_STORE_NAME)) { resolve([]); return; }
-                const tx = db.transaction(OLD_STORE_NAME, 'readonly');
-                const getAllReq = tx.objectStore(OLD_STORE_NAME).getAll();
-                getAllReq.onsuccess = () => resolve(getAllReq.result || []);
-                getAllReq.onerror = () => reject(getAllReq.error);
-            };
-            req.onerror = () => reject(req.error);
-        });
-
-        if (oldItems.length > 0) {
-            const store = galleryStore();
-            let migrated = 0;
-            oldItems.forEach(old => {
-                const id = 'migrated_' + old.id + '_' + Date.now();
-                if (store.cards[id]) return;
-                store.cards[id] = {
-                    id, charName: old.charName, dataUrl: old.dataUrl,
-                    meta: old.meta, createdAt: old.createdAt || Date.now(),
-                };
-                store.index.push({ id, charName: old.charName, createdAt: old.createdAt || Date.now() });
-                migrated++;
-            });
-            // 최신순 정렬 유지
-            store.index.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-            if (migrated > 0) {
-                saveSettingsDebounced();
-                console.log(`[NarrativeCard] 이전 기기 로컬 저장소에서 카드 ${migrated}개를 서버로 옮겼어`);
-                toastr.success(`이전에 저장된 카드 ${migrated}개를 서버로 옮겼어요`, 'Narrative Card', { timeOut: 4000 });
-            }
-        }
-    } catch (e) {
-        console.warn('[NarrativeCard] 이전 갤러리 마이그레이션 실패:', e);
-    }
-
-    if (!extension_settings[EXT]) extension_settings[EXT] = {};
-    extension_settings[EXT][MIGRATION_FLAG] = true;
-    saveSettingsDebounced();
-}
-
 jQuery(async () => {
     injectStyles();
     ensureFallbackStyles();
@@ -3579,7 +3937,14 @@ jQuery(async () => {
     bindSettingsEvents();
 
     injectWandMenu();
-    migrateOldIndexedDbGallery();
+    try {
+        const migrated = await migrateLegacySettingsGallery();
+        if (migrated > 0) {
+            toastr.success(`기존 카드 ${migrated}개를 DB로 복사했어요.`, 'Narrative Card', { timeOut: 3000 });
+        }
+    } catch (e) {
+        console.warn('[NarrativeCard] 기존 카드 DB 이전 실패:', e);
+    }
 
-    console.log('[NarrativeCard] 확장 로드 완료 (드래그 발췌 모드) [v-textarea-support-2]');
+    console.log('[NarrativeCard] 확장 로드 완료 (IndexedDB 갤러리 + 프리셋)');
 });
