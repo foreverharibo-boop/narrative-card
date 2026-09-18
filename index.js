@@ -1398,10 +1398,10 @@ function openPreviewPopup(mesEl) {
 
     // 미리보기 이미지
     const prevWrap = document.createElement('div');
-    prevWrap.style.cssText = 'display:flex;justify-content:center;align-items:center;flex:0 0 auto;min-height:0;overflow:hidden;padding:14px 14px 22px;background:#f2f2f2;box-sizing:border-box;';
+    prevWrap.style.cssText = 'display:flex;justify-content:center;align-items:center;flex:0 0 auto;min-height:0;overflow:hidden;padding:20px 14px 34px;background:#f2f2f2;box-sizing:border-box;';
     const prevImg = document.createElement('img');
     prevImg.id = 'ncard-prev-img';
-    prevImg.style.cssText = 'display:block;max-width:100%;max-height:240px;max-height:min(38dvh,240px);border-radius:8px;object-fit:contain;flex:0 0 auto;';
+    prevImg.style.cssText = 'display:block;max-width:100%;max-height:320px;max-height:min(48dvh,320px);border-radius:8px;object-fit:contain;flex:0 0 auto;';
     prevWrap.appendChild(prevImg);
 
     // 컨트롤 바디
@@ -1425,9 +1425,9 @@ function openPreviewPopup(mesEl) {
     // 배경 사진까지 포함해 IndexedDB에 저장하므로 settings.json이 커지지 않는다.
     if (c.preset_enabled) {
         const loadControls = document.createElement('div');
-        loadControls.style.cssText = 'display:flex;align-items:center;gap:5px;flex:1;min-width:0;';
+        loadControls.style.cssText = 'display:flex;align-items:center;gap:5px;flex:1;min-width:0;height:30px;margin:0;';
         const presetSelect = document.createElement('select');
-        presetSelect.style.cssText = 'height:30px;box-sizing:border-box;flex:1;min-width:0;background:#fff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:7px;padding:3px 7px;font-size:11px;';
+        presetSelect.style.cssText = 'height:30px!important;min-height:30px!important;max-height:30px!important;margin:0!important;box-sizing:border-box!important;flex:1;min-width:0;background:#fff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:7px;padding:3px 7px!important;font-size:11px;line-height:1.2!important;vertical-align:middle;';
 
         const loadBtn = document.createElement('button');
         loadBtn.type = 'button';
@@ -1436,23 +1436,23 @@ function openPreviewPopup(mesEl) {
         deleteBtn.type = 'button';
         deleteBtn.textContent = '삭제';
         [loadBtn, deleteBtn].forEach(btn => {
-            btn.style.cssText = 'height:30px;box-sizing:border-box;flex:0 0 auto;border:1px solid rgba(0,0,0,0.16);border-radius:7px;background:#fff;color:#1c1a17;padding:3px 7px;font-size:10px;cursor:pointer;white-space:nowrap;';
+            btn.style.cssText = 'height:30px!important;min-height:30px!important;max-height:30px!important;margin:0!important;box-sizing:border-box!important;flex:0 0 auto;border:1px solid rgba(0,0,0,0.16);border-radius:7px;background:#fff;color:#1c1a17;padding:3px 7px!important;font-size:10px;line-height:1.2!important;cursor:pointer;white-space:nowrap;vertical-align:middle;';
         });
         loadControls.appendChild(presetSelect);
         loadControls.appendChild(loadBtn);
         loadControls.appendChild(deleteBtn);
 
         const saveControls = document.createElement('div');
-        saveControls.style.cssText = 'display:flex;align-items:center;gap:5px;flex:1;min-width:0;';
+        saveControls.style.cssText = 'display:flex;align-items:center;gap:5px;flex:1;min-width:0;height:30px;margin:0;';
         const presetName = document.createElement('input');
         presetName.type = 'text';
         presetName.placeholder = '새 프리셋 이름';
         presetName.maxLength = 60;
-        presetName.style.cssText = 'height:30px;box-sizing:border-box;min-width:0;flex:1;background:#fff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:7px;padding:3px 7px;font-size:11px;';
+        presetName.style.cssText = 'height:30px!important;min-height:30px!important;max-height:30px!important;margin:0!important;box-sizing:border-box!important;min-width:0;flex:1;background:#fff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:7px;padding:3px 7px!important;font-size:11px;line-height:1.2!important;';
         const saveBtn = document.createElement('button');
         saveBtn.type = 'button';
         saveBtn.textContent = '저장';
-        saveBtn.style.cssText = 'height:30px;box-sizing:border-box;flex:0 0 auto;border:1px solid rgba(0,0,0,0.16);border-radius:7px;background:#fff;color:#1c1a17;padding:3px 10px;font-size:10px;cursor:pointer;white-space:nowrap;';
+        saveBtn.style.cssText = 'height:30px!important;min-height:30px!important;max-height:30px!important;margin:0!important;box-sizing:border-box!important;flex:0 0 auto;border:1px solid rgba(0,0,0,0.16);border-radius:7px;background:#fff;color:#1c1a17;padding:3px 10px!important;font-size:10px;line-height:1.2!important;cursor:pointer;white-space:nowrap;vertical-align:middle;';
         saveControls.appendChild(presetName);
         saveControls.appendChild(saveBtn);
 
