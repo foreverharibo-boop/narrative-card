@@ -1398,21 +1398,21 @@ function openPreviewPopup(mesEl) {
 
     // 미리보기 이미지
     const prevWrap = document.createElement('div');
-    prevWrap.style.cssText = 'display:flex;justify-content:center;align-items:center;padding:14px;background:#f2f2f2;min-height:140px;';
+    prevWrap.style.cssText = 'display:flex;justify-content:center;align-items:center;flex:0 0 auto;min-height:0;overflow:hidden;padding:14px 14px 22px;background:#f2f2f2;box-sizing:border-box;';
     const prevImg = document.createElement('img');
     prevImg.id = 'ncard-prev-img';
-    prevImg.style.cssText = 'max-width:100%;max-height:240px;border-radius:8px;object-fit:contain;';
+    prevImg.style.cssText = 'display:block;max-width:100%;max-height:240px;max-height:min(38dvh,240px);border-radius:8px;object-fit:contain;flex:0 0 auto;';
     prevWrap.appendChild(prevImg);
 
     // 컨트롤 바디
     const body = document.createElement('div');
     body.className = 'ncard-popup-body';
-    body.style.gap = '12px';
+    body.style.cssText = 'gap:9px;min-height:0;overflow-y:auto;flex:1 1 auto;padding-top:18px;';
 
     // 헬퍼: 라벨+컨텐츠 행
-    function ctrlRow(labelText, contentEl, labelWidth = 68) {
+    function ctrlRow(labelText, contentEl, labelWidth = 78) {
         const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:10px;';
+        row.style.cssText = 'display:flex;align-items:center;gap:10px;width:100%;min-width:0;flex:0 0 auto;';
         const lbl = document.createElement('span');
         lbl.style.cssText = `font-size:12px;color:rgba(0,0,0,0.6);min-width:${labelWidth}px;flex-shrink:0;`;
         lbl.textContent = labelText;
@@ -1427,7 +1427,7 @@ function openPreviewPopup(mesEl) {
         const loadControls = document.createElement('div');
         loadControls.style.cssText = 'display:flex;align-items:center;gap:5px;flex:1;min-width:0;';
         const presetSelect = document.createElement('select');
-        presetSelect.style.cssText = 'height:34px;box-sizing:border-box;flex:1;min-width:0;background:#fff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:8px;padding:5px 8px;font-size:12px;';
+        presetSelect.style.cssText = 'height:30px;box-sizing:border-box;flex:1;min-width:0;background:#fff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:7px;padding:3px 7px;font-size:11px;';
 
         const loadBtn = document.createElement('button');
         loadBtn.type = 'button';
@@ -1436,7 +1436,7 @@ function openPreviewPopup(mesEl) {
         deleteBtn.type = 'button';
         deleteBtn.textContent = '삭제';
         [loadBtn, deleteBtn].forEach(btn => {
-            btn.style.cssText = 'height:34px;box-sizing:border-box;flex:0 0 auto;border:1px solid rgba(0,0,0,0.16);border-radius:8px;background:#fff;color:#1c1a17;padding:5px 8px;font-size:11px;cursor:pointer;white-space:nowrap;';
+            btn.style.cssText = 'height:30px;box-sizing:border-box;flex:0 0 auto;border:1px solid rgba(0,0,0,0.16);border-radius:7px;background:#fff;color:#1c1a17;padding:3px 7px;font-size:10px;cursor:pointer;white-space:nowrap;';
         });
         loadControls.appendChild(presetSelect);
         loadControls.appendChild(loadBtn);
@@ -1448,11 +1448,11 @@ function openPreviewPopup(mesEl) {
         presetName.type = 'text';
         presetName.placeholder = '새 프리셋 이름';
         presetName.maxLength = 60;
-        presetName.style.cssText = 'height:34px;box-sizing:border-box;min-width:0;flex:1;background:#fff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:8px;padding:5px 8px;font-size:12px;';
+        presetName.style.cssText = 'height:30px;box-sizing:border-box;min-width:0;flex:1;background:#fff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:7px;padding:3px 7px;font-size:11px;';
         const saveBtn = document.createElement('button');
         saveBtn.type = 'button';
         saveBtn.textContent = '저장';
-        saveBtn.style.cssText = 'height:34px;box-sizing:border-box;flex:0 0 auto;border:1px solid rgba(0,0,0,0.16);border-radius:8px;background:#fff;color:#1c1a17;padding:5px 12px;font-size:11px;cursor:pointer;white-space:nowrap;';
+        saveBtn.style.cssText = 'height:30px;box-sizing:border-box;flex:0 0 auto;border:1px solid rgba(0,0,0,0.16);border-radius:7px;background:#fff;color:#1c1a17;padding:3px 10px;font-size:10px;cursor:pointer;white-space:nowrap;';
         saveControls.appendChild(presetName);
         saveControls.appendChild(saveBtn);
 
@@ -1520,8 +1520,8 @@ function openPreviewPopup(mesEl) {
             }
         });
 
-        body.appendChild(ctrlRow('저장된 프리셋', loadControls, 84));
-        body.appendChild(ctrlRow('프리셋 저장', saveControls, 84));
+        body.appendChild(ctrlRow('프리셋', loadControls));
+        body.appendChild(ctrlRow('프리셋 저장', saveControls));
         refreshPresetSelect().catch(e => console.warn('[NarrativeCard] 프리셋 목록 불러오기 실패:', e));
     }
 
@@ -1530,7 +1530,7 @@ function openPreviewPopup(mesEl) {
     nameInput.type = 'text';
     nameInput.value = _previewState.charName || '';
     nameInput.placeholder = '이름 없음';
-    nameInput.style.cssText = 'flex:1;background:#ffffff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:8px;padding:5px 8px;font-size:12px;';
+    nameInput.style.cssText = 'height:30px;box-sizing:border-box;flex:1;min-width:0;background:#ffffff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:7px;padding:3px 7px;font-size:11px;';
     let nameDebounce;
     nameInput.addEventListener('input', () => {
         _previewState.charName = nameInput.value;
@@ -1541,7 +1541,7 @@ function openPreviewPopup(mesEl) {
 
     // 1) 테마
     const themeSelect = document.createElement('select');
-    themeSelect.style.cssText = 'flex:1;background:#ffffff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:8px;padding:5px 8px;font-size:12px;';
+    themeSelect.style.cssText = 'height:30px;box-sizing:border-box;flex:1;min-width:0;background:#ffffff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:7px;padding:3px 7px;font-size:11px;';
     THEMES.forEach(t => {
         const opt = document.createElement('option');
         opt.value = t.value; opt.textContent = t.label;
@@ -1555,11 +1555,11 @@ function openPreviewPopup(mesEl) {
     // (모바일 브라우저는 네이티브 select의 option에 font-family를 줘도
     //  시스템 기본 폰트로만 보여주는 경우가 많아서, 직접 그려서 확실하게 반영함)
     const fontFieldWrap = document.createElement('div');
-    fontFieldWrap.style.cssText = 'position:relative;flex:1;';
+    fontFieldWrap.style.cssText = 'position:relative;flex:1;min-width:0;';
 
     const fontBtn = document.createElement('button');
     fontBtn.type = 'button';
-    fontBtn.style.cssText = 'width:100%;height:34px;min-height:34px;box-sizing:border-box;overflow:hidden;text-align:left;background:#ffffff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:8px;padding:5px 8px;font-size:12px;line-height:1.2;display:flex;justify-content:space-between;align-items:center;cursor:pointer;';
+    fontBtn.style.cssText = 'width:100%;height:30px;min-height:30px;box-sizing:border-box;overflow:hidden;text-align:left;background:#ffffff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:7px;padding:3px 7px;font-size:11px;line-height:1.2;display:flex;justify-content:space-between;align-items:center;cursor:pointer;';
 
     const fontBtnLabel = document.createElement('span');
     fontBtnLabel.style.cssText = 'display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2;';
