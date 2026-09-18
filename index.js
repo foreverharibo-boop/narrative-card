@@ -746,14 +746,11 @@ const DEFAULTS = {
 };
 
 function getExtSettings() {
-    try {
-        const ctx = (typeof getContext === 'function' ? getContext : SillyTavern.getContext)();
-        if (!ctx.extensionSettings) return null;
-        if (!ctx.extensionSettings[EXT]) ctx.extensionSettings[EXT] = {};
-        return ctx.extensionSettings[EXT];
-    } catch (e) {
-        return extension_settings[EXT] || null;
-    }
+    // SillyTavern 확장의 공식 설정 객체를 직접 사용한다.
+    // 일부 버전의 getContext()에는 extensionSettings가 노출되지 않아
+    // 체크박스가 화면에서만 켜지고 실제 저장은 무시되는 경우가 있었다.
+    if (!extension_settings[EXT]) extension_settings[EXT] = {};
+    return extension_settings[EXT];
 }
 
 function cfg() {
@@ -1413,11 +1410,11 @@ function openPreviewPopup(mesEl) {
     body.style.gap = '12px';
 
     // 헬퍼: 라벨+컨텐츠 행
-    function ctrlRow(labelText, contentEl) {
+    function ctrlRow(labelText, contentEl, labelWidth = 68) {
         const row = document.createElement('div');
         row.style.cssText = 'display:flex;align-items:center;gap:10px;';
         const lbl = document.createElement('span');
-        lbl.style.cssText = 'font-size:12px;color:rgba(0,0,0,0.6);min-width:68px;flex-shrink:0;';
+        lbl.style.cssText = `font-size:12px;color:rgba(0,0,0,0.6);min-width:${labelWidth}px;flex-shrink:0;`;
         lbl.textContent = labelText;
         row.appendChild(lbl);
         row.appendChild(contentEl);
@@ -1427,36 +1424,37 @@ function openPreviewPopup(mesEl) {
     // 프리셋은 사용자가 확장 설정에서 켠 경우에만 표시한다.
     // 배경 사진까지 포함해 IndexedDB에 저장하므로 settings.json이 커지지 않는다.
     if (c.preset_enabled) {
-        const presetPanel = document.createElement('div');
-        presetPanel.style.cssText = 'display:flex;flex-direction:column;gap:7px;padding:9px;border:1px solid rgba(0,0,0,0.12);border-radius:9px;background:#faf8f3;';
-
+        const loadControls = document.createElement('div');
+        loadControls.style.cssText = 'display:flex;align-items:center;gap:5px;flex:1;min-width:0;';
         const presetSelect = document.createElement('select');
-        presetSelect.style.cssText = 'width:100%;background:#fff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:7px;padding:6px 8px;font-size:12px;';
+        presetSelect.style.cssText = 'height:34px;box-sizing:border-box;flex:1;min-width:0;background:#fff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:8px;padding:5px 8px;font-size:12px;';
 
-        const presetName = document.createElement('input');
-        presetName.type = 'text';
-        presetName.placeholder = '프리셋 이름';
-        presetName.maxLength = 60;
-        presetName.style.cssText = 'min-width:0;flex:1;background:#fff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:7px;padding:6px 8px;font-size:12px;';
-
-        const buttonRow = document.createElement('div');
-        buttonRow.style.cssText = 'display:flex;gap:5px;align-items:center;';
         const loadBtn = document.createElement('button');
         loadBtn.type = 'button';
         loadBtn.textContent = '불러오기';
-        const saveBtn = document.createElement('button');
-        saveBtn.type = 'button';
-        saveBtn.textContent = '저장';
         const deleteBtn = document.createElement('button');
         deleteBtn.type = 'button';
         deleteBtn.textContent = '삭제';
-        [loadBtn, saveBtn, deleteBtn].forEach(btn => {
-            btn.style.cssText = 'flex:0 0 auto;border:1px solid rgba(0,0,0,0.16);border-radius:7px;background:#fff;color:#1c1a17;padding:6px 9px;font-size:11px;cursor:pointer;';
+        [loadBtn, deleteBtn].forEach(btn => {
+            btn.style.cssText = 'height:34px;box-sizing:border-box;flex:0 0 auto;border:1px solid rgba(0,0,0,0.16);border-radius:8px;background:#fff;color:#1c1a17;padding:5px 8px;font-size:11px;cursor:pointer;white-space:nowrap;';
         });
-        buttonRow.appendChild(presetName);
-        buttonRow.appendChild(loadBtn);
-        buttonRow.appendChild(saveBtn);
-        buttonRow.appendChild(deleteBtn);
+        loadControls.appendChild(presetSelect);
+        loadControls.appendChild(loadBtn);
+        loadControls.appendChild(deleteBtn);
+
+        const saveControls = document.createElement('div');
+        saveControls.style.cssText = 'display:flex;align-items:center;gap:5px;flex:1;min-width:0;';
+        const presetName = document.createElement('input');
+        presetName.type = 'text';
+        presetName.placeholder = '새 프리셋 이름';
+        presetName.maxLength = 60;
+        presetName.style.cssText = 'height:34px;box-sizing:border-box;min-width:0;flex:1;background:#fff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:8px;padding:5px 8px;font-size:12px;';
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.textContent = '저장';
+        saveBtn.style.cssText = 'height:34px;box-sizing:border-box;flex:0 0 auto;border:1px solid rgba(0,0,0,0.16);border-radius:8px;background:#fff;color:#1c1a17;padding:5px 12px;font-size:11px;cursor:pointer;white-space:nowrap;';
+        saveControls.appendChild(presetName);
+        saveControls.appendChild(saveBtn);
 
         async function refreshPresetSelect(preferredId = '') {
             const presets = await getAllPresets();
@@ -1473,47 +1471,57 @@ function openPreviewPopup(mesEl) {
             });
             if (preferredId && presets.some(p => p.id === preferredId)) {
                 presetSelect.value = preferredId;
-                const selected = presets.find(p => p.id === preferredId);
-                presetName.value = selected?.name || '';
             }
         }
 
-        presetSelect.addEventListener('change', () => {
-            presetName.value = presetSelect.selectedOptions[0]?.textContent || '';
-            if (!presetSelect.value) presetName.value = '';
-        });
-
         loadBtn.addEventListener('click', async () => {
             if (!presetSelect.value) { toastr.info('불러올 프리셋을 선택해주세요.'); return; }
-            const restored = await loadPresetState(presetSelect.value);
-            if (!restored) { toastr.error('프리셋을 불러오지 못했습니다.'); return; }
-            _pendingEditMeta = restored;
-            overlay.remove();
-            openPreviewPopup(mesEl);
-            toastr.success('프리셋을 불러왔어요.', '', { timeOut: 1400 });
+            try {
+                const restored = await loadPresetState(presetSelect.value);
+                if (!restored) { toastr.error('프리셋을 불러오지 못했습니다.'); return; }
+                _pendingEditMeta = restored;
+                overlay.remove();
+                openPreviewPopup(mesEl);
+                toastr.success('프리셋을 불러왔어요.', '', { timeOut: 1400 });
+            } catch (e) {
+                console.error('[NarrativeCard] 프리셋 불러오기 실패:', e);
+                toastr.error('프리셋을 불러오지 못했습니다.');
+            }
         });
 
         saveBtn.addEventListener('click', async () => {
             const name = presetName.value.trim();
             if (!name) { toastr.warning('프리셋 이름을 입력해주세요.'); presetName.focus(); return; }
-            const id = await savePreset(name, _previewState, presetSelect.value || null);
-            await refreshPresetSelect(id);
-            toastr.success('프리셋을 저장했어요.', '', { timeOut: 1400 });
+            try {
+                const presets = await getAllPresets();
+                const sameName = presets.find(p => p.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase());
+                if (sameName && !window.confirm(`“${sameName.name}” 프리셋을 덮어쓸까요?`)) return;
+                const id = await savePreset(name, _previewState, sameName?.id || null);
+                presetName.value = '';
+                await refreshPresetSelect(id);
+                toastr.success(sameName ? '프리셋을 덮어썼어요.' : '새 프리셋을 저장했어요.', '', { timeOut: 1400 });
+            } catch (e) {
+                console.error('[NarrativeCard] 프리셋 저장 실패:', e);
+                toastr.error('프리셋을 저장하지 못했습니다.');
+            }
         });
 
         deleteBtn.addEventListener('click', async () => {
             if (!presetSelect.value) { toastr.info('삭제할 프리셋을 선택해주세요.'); return; }
             const name = presetSelect.selectedOptions[0]?.textContent || '이 프리셋';
             if (!window.confirm(`“${name}” 프리셋을 삭제할까요?`)) return;
-            await deletePreset(presetSelect.value);
-            presetName.value = '';
-            await refreshPresetSelect();
-            toastr.success('프리셋을 삭제했어요.', '', { timeOut: 1400 });
+            try {
+                await deletePreset(presetSelect.value);
+                await refreshPresetSelect();
+                toastr.success('프리셋을 삭제했어요.', '', { timeOut: 1400 });
+            } catch (e) {
+                console.error('[NarrativeCard] 프리셋 삭제 실패:', e);
+                toastr.error('프리셋을 삭제하지 못했습니다.');
+            }
         });
 
-        presetPanel.appendChild(presetSelect);
-        presetPanel.appendChild(buttonRow);
-        body.appendChild(ctrlRow('프리셋', presetPanel));
+        body.appendChild(ctrlRow('저장된 프리셋', loadControls, 84));
+        body.appendChild(ctrlRow('프리셋 저장', saveControls, 84));
         refreshPresetSelect().catch(e => console.warn('[NarrativeCard] 프리셋 목록 불러오기 실패:', e));
     }
 
@@ -1551,10 +1559,10 @@ function openPreviewPopup(mesEl) {
 
     const fontBtn = document.createElement('button');
     fontBtn.type = 'button';
-    fontBtn.style.cssText = 'width:100%;text-align:left;background:#ffffff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:8px;padding:7px 10px;font-size:13px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;';
+    fontBtn.style.cssText = 'width:100%;height:34px;min-height:34px;box-sizing:border-box;overflow:hidden;text-align:left;background:#ffffff;color:#1c1a17;border:1px solid rgba(0,0,0,0.18);border-radius:8px;padding:5px 8px;font-size:12px;line-height:1.2;display:flex;justify-content:space-between;align-items:center;cursor:pointer;';
 
     const fontBtnLabel = document.createElement('span');
-    fontBtnLabel.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    fontBtnLabel.style.cssText = 'display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2;';
     const fontBtnArrow = document.createElement('span');
     fontBtnArrow.textContent = '▾';
     fontBtnArrow.style.cssText = 'opacity:0.5;margin-left:8px;flex-shrink:0;';
@@ -3853,6 +3861,12 @@ function bindSettingsEvents() {
 
     $('#ncard-save-settings').on('click', save);
     $('#ncard-open-gallery').on('click', openGallery);
+    $('#ncard-preset-enabled').on('change', function () {
+        const s = getExtSettings();
+        s.preset_enabled = Boolean($(this).prop('checked'));
+        saveSettingsDebounced();
+        toastr.success(s.preset_enabled ? '프리셋 기능을 켰어요.' : '프리셋 기능을 껐어요.', '', { timeOut: 1400 });
+    });
 
     const updateLegacyInfo = () => {
         const stats = legacyGalleryStats();
