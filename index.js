@@ -3101,8 +3101,14 @@ function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, rati
     const W = ratioConf.w;
     const _baseH = ratioConf.h;
     const PAD_X = Math.round(W * 0.085);
-    const PAD_BOTTOM = 70;
     const PAD_TOP = 60;
+    const metaLeft = [charName, cardData.location]
+        .map(value => String(value ?? '').trim())
+        .filter(Boolean)
+        .join(' · ');
+    const hasMeta = metaLeft.length > 0;
+    // 이름/위치가 비어 있으면 하단 메타 영역 자체를 없애 본문이 카드 정중앙에 오게 한다.
+    const PAD_BOTTOM = hasMeta ? 70 : PAD_TOP;
 
     const measureCanvas = document.createElement('canvas');
     const mctx = measureCanvas.getContext('2d');
@@ -3136,7 +3142,7 @@ function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, rati
     let contentHeight = totalHeight(blocks);
 
     // 텍스트가 많으면 카드 높이를 동적으로 늘림 (글씨 크기는 유지)
-    const neededH = contentHeight + PAD_TOP + PAD_BOTTOM + 20;
+    const neededH = contentHeight + PAD_TOP + PAD_BOTTOM + (hasMeta ? 20 : 0);
     const H = Math.max(_baseH, neededH);
 
     const baseNarr = Math.round(13 * scale);
@@ -3169,7 +3175,7 @@ function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, rati
         drawDecoration(ctx, W, H, theme);
     }
 
-    let y = (H - contentHeight) / 2 - 20;
+    let y = (H - contentHeight) / 2 - (hasMeta ? 20 : 0);
     ctx.textBaseline = 'alphabetic';
 
     blocks.forEach((b, i) => {
@@ -3184,9 +3190,10 @@ function renderCard(cardData, themeKey, charName, mesId, fontSizePct = 100, rati
     ctx.font = FONT_META;
     // 사용자가 글자색을 직접 골랐으면 이름/장소 텍스트도 같은 색으로 (테마 기본색보다 우선)
     ctx.fillStyle = textColorOverride || theme.meta;
-    const metaLeft = [charName, cardData.location].filter(Boolean).join(' · ');
-    ctx.textAlign = 'left';
-    ctx.fillText(metaLeft, PAD_X, H - 32);
+    if (hasMeta) {
+        ctx.textAlign = 'left';
+        ctx.fillText(metaLeft, PAD_X, H - 32);
+    }
     // 채팅 번호 표시 제거
 
     return canvas.toDataURL('image/png');
