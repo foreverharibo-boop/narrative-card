@@ -2122,6 +2122,67 @@ function drawDecoration(ctx, W, H, theme) {
     const rand = seededRandom(42);
     ctx.save();
 
+    const drawFullBouquet = (baseX, baseY, scale, stemColor, flowerColors, alpha = 0.64) => {
+        const blooms = [
+            { dx: -54, dy: -142, size: 8 },
+            { dx: -35, dy: -168, size: 9 },
+            { dx: -15, dy: -132, size: 7 },
+            { dx: 5,   dy: -158, size: 8 },
+            { dx: 24,  dy: -126, size: 7 },
+            { dx: 38,  dy: -148, size: 8 },
+        ];
+        blooms.forEach((b, i) => {
+            const dx = b.dx * scale;
+            const dy = b.dy * scale;
+            const size = b.size * scale;
+            ctx.globalAlpha = alpha;
+            ctx.strokeStyle = stemColor;
+            ctx.lineWidth = Math.max(1, 1.45 * scale);
+            ctx.beginPath();
+            ctx.moveTo(baseX, baseY);
+            ctx.quadraticCurveTo(baseX + dx * 0.28, baseY + dy * 0.48, baseX + dx, baseY + dy + size * 0.8);
+            ctx.stroke();
+
+            // 양쪽 잎
+            [[0.42, -1], [0.62, 1]].forEach(([at, side]) => {
+                const lx = baseX + dx * at;
+                const ly = baseY + dy * at;
+                ctx.save();
+                ctx.translate(lx, ly);
+                ctx.rotate(Math.atan2(dy, dx) + side * 0.72);
+                ctx.fillStyle = stemColor;
+                ctx.globalAlpha = alpha * 0.72;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 10 * scale, 3.7 * scale, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            // 다섯 장의 둥근 꽃잎
+            ctx.fillStyle = flowerColors[i % flowerColors.length];
+            ctx.globalAlpha = alpha;
+            for (let p = 0; p < 5; p++) {
+                const a = (Math.PI * 2 * p) / 5 - Math.PI / 2;
+                ctx.beginPath();
+                ctx.ellipse(
+                    baseX + dx + Math.cos(a) * size * 0.48,
+                    baseY + dy + Math.sin(a) * size * 0.48,
+                    size * 0.54,
+                    size * 0.72,
+                    a,
+                    0,
+                    Math.PI * 2,
+                );
+                ctx.fill();
+            }
+            ctx.fillStyle = flowerColors[(i + 1) % flowerColors.length];
+            ctx.globalAlpha = Math.min(1, alpha + 0.12);
+            ctx.beginPath();
+            ctx.arc(baseX + dx, baseY + dy, size * 0.32, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    };
+
     if (theme.deco === 'petals') {
         for (let i = 0; i < 14; i++) {
             const x = rand() * W;
@@ -2253,25 +2314,15 @@ function drawDecoration(ctx, W, H, theme) {
         ctx.font = `${Math.max(9, Math.round(Math.min(W, H) * 0.018))}px Georgia, serif`;
         ctx.fillText('NARRATIVE · 128', W - outer - 14, outer + 15);
 
-        // 우측 하단의 마른 꽃 실루엣
-        const stemX = W - outer - 34;
-        const stemBottom = H - outer - 4;
-        ctx.globalAlpha = 0.50;
-        ctx.strokeStyle = theme.accent;
-        ctx.fillStyle = theme.accent2;
-        ctx.lineWidth = 1;
-        [-18, 0, 16].forEach((dx, i) => {
-            const topY = stemBottom - 56 - i * 9;
-            ctx.beginPath();
-            ctx.moveTo(stemX, stemBottom);
-            ctx.quadraticCurveTo(stemX + dx * 0.3, stemBottom - 30, stemX + dx, topY);
-            ctx.stroke();
-            [[-4, -2], [4, 1], [0, -5]].forEach(([px, py]) => {
-                ctx.beginPath();
-                ctx.arc(stemX + dx + px, topY + py, 2.2, 0, Math.PI * 2);
-                ctx.fill();
-            });
-        });
+        // 우측 하단의 크고 풍성한 빈티지 부케
+        drawFullBouquet(
+            W - outer - 22,
+            H - outer - 2,
+            Math.min(W, H) / 570,
+            '#8b7654',
+            ['#c5a36f', '#dbc394', '#b88b58', '#ead9b5'],
+            0.62,
+        );
 
     } else if (theme.deco === 'youth_diary') {
         // ── 청춘 다이어리: 파스텔 모눈 종이 + 테이프 + 작은 낙서 ──
@@ -2319,23 +2370,15 @@ function drawDecoration(ctx, W, H, theme) {
         ctx.textBaseline = 'alphabetic';
         ctx.strokeText('♡', 32, H - 34);
 
-        // 오른쪽 아래 작은 압화 장식
-        ctx.globalAlpha = 0.50;
-        ctx.strokeStyle = '#789b72';
-        ctx.fillStyle = '#f2c7cf';
-        ctx.lineWidth = 1;
-        const flowerBaseX = W - 82;
-        const flowerBaseY = H - 20;
-        [-18, 0, 15].forEach((dx, i) => {
-            const topY = flowerBaseY - 42 - i * 8;
-            ctx.beginPath();
-            ctx.moveTo(flowerBaseX, flowerBaseY);
-            ctx.quadraticCurveTo(flowerBaseX + dx * 0.3, flowerBaseY - 20, flowerBaseX + dx, topY);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.arc(flowerBaseX + dx, topY, 3, 0, Math.PI * 2);
-            ctx.fill();
-        });
+        // 오른쪽 아래의 크고 풍성한 파스텔 압화 부케
+        drawFullBouquet(
+            W - 58,
+            H - 18,
+            Math.min(W, H) / 570,
+            '#77a083',
+            ['#efb3c1', '#c5b4df', '#a9cce3', '#f4d7a7'],
+            0.66,
+        );
 
     } else if (theme.deco === 'kitsch_romance') {
         // ── 키치 로맨스: 파스텔 핑크 + 민트 이중 프레임 + 하트 스티커 ──
