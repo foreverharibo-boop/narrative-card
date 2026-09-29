@@ -637,7 +637,10 @@ const THEMES = [
     { value: 'pastel_mint',   label: '🌿 파스텔 민트',      bg: '#e8faf4', text: '#1a5a40', sub: 'rgba(26,90,64,0.6)',    line: 'rgba(80,190,140,0.4)',  meta: 'rgba(26,90,64,0.45)',   accent: '#60c8a0', deco: 'leaves' },
     { value: 'pastel_butter', label: '🌼 파스텔 버터',      bg: '#fdfae8', text: '#6a5a10', sub: 'rgba(106,90,16,0.6)',   line: 'rgba(210,190,80,0.4)',  meta: 'rgba(106,90,16,0.45)',  accent: '#d4c040', deco: 'petals' },
     // 독특한 신규 테마
-    { value: 'bubblegum',   label: '🍬 버블검 (달콤한 핑크 팝)',  bg: '#ff9ec8', text: '#4a1535', sub: 'rgba(74,21,53,0.6)',    line: 'rgba(74,21,53,0.25)',   meta: 'rgba(74,21,53,0.5)',    accent: '#fff',    accent2: '#ffdf80', deco: 'bubblegum' },
+    { value: 'classic_literature', label: '📚 고전 문학',        bg: '#f2eadc', text: '#31291f', sub: 'rgba(49,41,31,0.58)',    line: 'rgba(120,96,66,0.48)',  meta: 'rgba(49,41,31,0.48)',   accent: '#8f7654', accent2: '#c7ad82', deco: 'classic_literature' },
+    { value: 'youth_diary',       label: '📘 청춘 다이어리',    bg: '#eef5fb', text: '#365a78', sub: 'rgba(54,90,120,0.58)',   line: 'rgba(120,165,200,0.32)', meta: 'rgba(54,90,120,0.48)',   accent: '#8fb5d2', accent2: '#efb6c2', deco: 'youth_diary' },
+    { value: 'kitsch_romance',    label: '💗 키치 로맨스',      bg: '#fbe4ec', text: '#a34563', sub: 'rgba(163,69,99,0.58)',   line: 'rgba(163,69,99,0.25)',  meta: 'rgba(163,69,99,0.48)',  accent: '#9fd4c2', accent2: '#e89ab2', deco: 'kitsch_romance' },
+    { value: 'bubblegum',   label: '🍬 버블검 (파스텔 핑크 팝)', bg: '#f5d5e2', text: '#704057', sub: 'rgba(112,64,87,0.58)',   line: 'rgba(112,64,87,0.20)',  meta: 'rgba(112,64,87,0.46)',  accent: '#fff8fb', accent2: '#f4e4bd', deco: 'bubblegum' },
     { value: 'galaxy',      label: '🌌 갤럭시 (우주 그라디언트)', bg: '#0a0015', text: '#e8d8ff', sub: 'rgba(232,216,255,0.55)', line: 'rgba(150,100,255,0.3)', meta: 'rgba(232,216,255,0.45)', accent: '#c78fff', accent2: '#7fffd4', deco: 'galaxy' },
     { value: 'cottagecore', label: '🌾 코티지코어 (들꽃과 나무)', bg: '#f7f0e3', text: '#3b2a14', sub: 'rgba(59,42,20,0.55)',   line: 'rgba(59,42,20,0.25)',   meta: 'rgba(59,42,20,0.45)',   accent: '#c9935a', accent2: '#7ab87a', deco: 'cottagecore' },
     // 신규 테마
@@ -1556,6 +1559,8 @@ function openPreviewPopup(mesEl) {
     //  시스템 기본 폰트로만 보여주는 경우가 많아서, 직접 그려서 확실하게 반영함)
     const fontFieldWrap = document.createElement('div');
     fontFieldWrap.style.cssText = 'position:relative;flex:1;min-width:0;height:30px;margin:0!important;';
+    // 전역 웹폰트 확장이 이 영역의 개별 폰트 미리보기를 덮어쓰지 않도록 보호한다.
+    fontFieldWrap.dataset.dameunFontScope = 'preserve';
 
     const fontBtn = document.createElement('button');
     fontBtn.type = 'button';
@@ -1577,7 +1582,8 @@ function openPreviewPopup(mesEl) {
         row.style.cssText = 'padding:9px 12px;font-size:14px;cursor:pointer;color:#1c1a17;border-bottom:1px solid rgba(0,0,0,0.06);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
         row.textContent = label;
         // 실제 폰트 모양으로 이름을 보여줌 — 로드가 끝나면 자동으로(font-display:swap) 바뀜
-        row.style.fontFamily = `${family}, "Noto Sans KR", sans-serif`;
+        row.style.setProperty('font-family', `${family}, "Noto Sans KR", sans-serif`, 'important');
+        row.style.setProperty('font-weight', '400', 'important');
         if (!isCustom) ensureFontReady(value); // 아직 안 불러온 폰트면 미리 로드 시작
         row.addEventListener('mousedown', (e) => e.preventDefault()); // 버튼 blur로 닫히기 전에 클릭 처리
         row.addEventListener('click', () => {
@@ -1602,7 +1608,8 @@ function openPreviewPopup(mesEl) {
     function updateFontButton() {
         const def = getFontDef(_previewState.fontFamily);
         fontBtnLabel.textContent = def.label;
-        fontBtnLabel.style.fontFamily = `${def.family}, "Noto Sans KR", sans-serif`;
+        fontBtnLabel.style.setProperty('font-family', `${def.family}, "Noto Sans KR", sans-serif`, 'important');
+        fontBtnLabel.style.setProperty('font-weight', '400', 'important');
     }
     updateFontButton();
 
@@ -2195,23 +2202,173 @@ function drawDecoration(ctx, W, H, theme) {
             ctx.fill();
         }
 
+    } else if (theme.deco === 'classic_literature') {
+        // ── 고전 문학: 크림 종이 + 이중 프레임 + 고전 장식 ──
+        const paper = ctx.createRadialGradient(W * 0.5, H * 0.42, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.72);
+        paper.addColorStop(0, '#f8f2e7');
+        paper.addColorStop(0.72, '#f1e8d8');
+        paper.addColorStop(1, '#e7dac5');
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = paper;
+        ctx.fillRect(0, 0, W, H);
+
+        for (let i = 0; i < 110; i++) {
+            ctx.globalAlpha = 0.025 + rand() * 0.025;
+            ctx.fillStyle = '#6f583c';
+            ctx.beginPath();
+            ctx.arc(rand() * W, rand() * H, 0.35 + rand() * 0.8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        const outer = Math.round(Math.min(W, H) * 0.034);
+        ctx.globalAlpha = 0.64;
+        ctx.strokeStyle = theme.accent;
+        ctx.lineWidth = 1.2;
+        ctx.strokeRect(outer, outer, W - outer * 2, H - outer * 2);
+        ctx.globalAlpha = 0.34;
+        ctx.lineWidth = 0.8;
+        ctx.strokeRect(outer + 6, outer + 6, W - (outer + 6) * 2, H - (outer + 6) * 2);
+
+        const ornamentY = outer + 18;
+        ctx.globalAlpha = 0.58;
+        ctx.fillStyle = theme.accent;
+        ctx.beginPath();
+        ctx.moveTo(W / 2, ornamentY - 4);
+        ctx.lineTo(W / 2 + 5, ornamentY);
+        ctx.lineTo(W / 2, ornamentY + 4);
+        ctx.lineTo(W / 2 - 5, ornamentY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = theme.accent;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(W / 2 - 56, ornamentY); ctx.lineTo(W / 2 - 10, ornamentY);
+        ctx.moveTo(W / 2 + 10, ornamentY); ctx.lineTo(W / 2 + 56, ornamentY);
+        ctx.stroke();
+
+    } else if (theme.deco === 'youth_diary') {
+        // ── 청춘 다이어리: 파스텔 모눈 종이 + 테이프 + 작은 낙서 ──
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#f2f7fb';
+        ctx.fillRect(0, 0, W, H);
+        const grid = Math.max(18, Math.round(Math.min(W, H) * 0.038));
+        ctx.strokeStyle = theme.line;
+        ctx.lineWidth = 0.75;
+        ctx.globalAlpha = 0.56;
+        for (let x = grid; x < W; x += grid) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+        }
+        for (let y = grid; y < H; y += grid) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+        }
+
+        for (let y = 36; y < H - 26; y += Math.max(42, Math.round(H * 0.095))) {
+            ctx.globalAlpha = 0.52;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(14, y, 5.2, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = 'rgba(91,126,153,0.22)';
+            ctx.stroke();
+        }
+
+        ctx.save();
+        ctx.translate(W * 0.84, 24);
+        ctx.rotate(0.14);
+        ctx.globalAlpha = 0.42;
+        ctx.fillStyle = '#a9c8e2';
+        ctx.fillRect(-34, -9, 68, 18);
+        ctx.restore();
+
+        ctx.globalAlpha = 0.58;
+        ctx.strokeStyle = theme.accent;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(W - 67, H - 62); ctx.lineTo(W - 32, H - 78); ctx.lineTo(W - 47, H - 45);
+        ctx.closePath(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(W - 66, H - 62); ctx.lineTo(W - 47, H - 45); ctx.stroke();
+        ctx.globalAlpha = 0.62;
+        ctx.strokeStyle = theme.accent2;
+        ctx.font = `${Math.max(16, Math.round(W * 0.03))}px sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.strokeText('♡', 32, H - 34);
+
+    } else if (theme.deco === 'kitsch_romance') {
+        // ── 키치 로맨스: 파스텔 핑크 + 민트 이중 프레임 + 하트 스티커 ──
+        const pink = ctx.createLinearGradient(0, 0, W, H);
+        pink.addColorStop(0, '#fcecf1');
+        pink.addColorStop(0.52, '#f9dfe8');
+        pink.addColorStop(1, '#fce9ef');
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = pink;
+        ctx.fillRect(0, 0, W, H);
+
+        const drawRoundedFrame = (x, y, w, h, r) => {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+        };
+        const margin = Math.round(Math.min(W, H) * 0.034);
+        ctx.globalAlpha = 0.78;
+        ctx.strokeStyle = theme.accent;
+        ctx.lineWidth = 2;
+        drawRoundedFrame(margin, margin, W - margin * 2, H - margin * 2, 18);
+        ctx.stroke();
+        ctx.globalAlpha = 0.34;
+        ctx.strokeStyle = theme.accent2;
+        ctx.lineWidth = 1;
+        drawRoundedFrame(margin + 6, margin + 6, W - (margin + 6) * 2, H - (margin + 6) * 2, 14);
+        ctx.stroke();
+
+        const drawGingham = (x, y, cols, rows, cell) => {
+            for (let gy = 0; gy < rows; gy++) {
+                for (let gx = 0; gx < cols; gx++) {
+                    ctx.globalAlpha = (gx + gy) % 2 === 0 ? 0.30 : 0.12;
+                    ctx.fillStyle = theme.accent2;
+                    ctx.fillRect(x + gx * cell, y + gy * cell, cell, cell);
+                }
+            }
+        };
+        drawGingham(W - 78, 18, 7, 2, 8);
+        drawGingham(22, H - 34, 6, 2, 7);
+
+        ctx.globalAlpha = 0.76;
+        ctx.fillStyle = theme.accent2;
+        ctx.font = `bold ${Math.max(18, Math.round(W * 0.035))}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('♥', W - 46, 62);
+        ctx.globalAlpha = 0.55;
+        ctx.fillText('♡', 48, H - 60);
+        ctx.fillStyle = theme.accent;
+        ctx.font = `bold ${Math.max(13, Math.round(W * 0.022))}px sans-serif`;
+        ctx.fillText('✦', 54, 58);
+        ctx.fillText('✧', W - 62, H - 58);
+
     } else if (theme.deco === 'bubblegum') {
-        // ── 버블검: 핑크 그라디언트 + 물방울 + 별 반짝이 ──
+        // ── 버블검: 부드러운 파스텔 핑크 그라디언트 + 물방울 + 별 반짝이 ──
         const grd = ctx.createLinearGradient(0, 0, W, H);
-        grd.addColorStop(0, '#ffb3d9');
-        grd.addColorStop(0.5, '#ff9ec8');
-        grd.addColorStop(1, '#ffd6ec');
+        grd.addColorStop(0, '#fae5ed');
+        grd.addColorStop(0.5, '#f3cfdd');
+        grd.addColorStop(1, '#fbeaf1');
         ctx.fillStyle = grd;
         ctx.fillRect(0, 0, W, H);
 
         // 물방울 도트
         const dots = [
             { c: '#fff', r: 14, x: 0.08, y: 0.10, a: 0.18 }, { c: '#fff', r: 8,  x: 0.18, y: 0.22, a: 0.13 },
-            { c: '#ffdf80', r: 10, x: 0.88, y: 0.08, a: 0.22 }, { c: '#fff', r: 6,  x: 0.95, y: 0.20, a: 0.16 },
-            { c: '#ffdf80', r: 18, x: 0.04, y: 0.85, a: 0.14 }, { c: '#fff', r: 9,  x: 0.15, y: 0.92, a: 0.20 },
-            { c: '#ffdf80', r: 12, x: 0.90, y: 0.88, a: 0.18 }, { c: '#fff', r: 7,  x: 0.78, y: 0.95, a: 0.14 },
-            { c: '#fff', r: 5,  x: 0.50, y: 0.06, a: 0.15 }, { c: '#ffdf80', r: 7,  x: 0.60, y: 0.94, a: 0.18 },
-            { c: '#fff', r: 11, x: 0.35, y: 0.05, a: 0.12 }, { c: '#ffdf80', r: 5,  x: 0.72, y: 0.07, a: 0.19 },
+            { c: '#f4e4bd', r: 10, x: 0.88, y: 0.08, a: 0.17 }, { c: '#fff', r: 6,  x: 0.95, y: 0.20, a: 0.13 },
+            { c: '#f4e4bd', r: 18, x: 0.04, y: 0.85, a: 0.11 }, { c: '#fff', r: 9,  x: 0.15, y: 0.92, a: 0.16 },
+            { c: '#f4e4bd', r: 12, x: 0.90, y: 0.88, a: 0.14 }, { c: '#fff', r: 7,  x: 0.78, y: 0.95, a: 0.12 },
+            { c: '#fff', r: 5,  x: 0.50, y: 0.06, a: 0.12 }, { c: '#f4e4bd', r: 7,  x: 0.60, y: 0.94, a: 0.14 },
+            { c: '#fff', r: 11, x: 0.35, y: 0.05, a: 0.10 }, { c: '#f4e4bd', r: 5,  x: 0.72, y: 0.07, a: 0.15 },
         ];
         dots.forEach(d => {
             ctx.globalAlpha = d.a;
@@ -2224,7 +2381,7 @@ function drawDecoration(ctx, W, H, theme) {
         // 별 반짝이
         const sparkles = [[0.12,0.18],[0.85,0.14],[0.05,0.75],[0.92,0.82],[0.45,0.08],[0.58,0.92]];
         sparkles.forEach(([sx, sy]) => {
-            ctx.globalAlpha = 0.5;
+            ctx.globalAlpha = 0.34;
             ctx.fillStyle = '#fff';
             ctx.font = `bold ${Math.round(W * 0.025)}px sans-serif`;
             ctx.textAlign = 'center';
