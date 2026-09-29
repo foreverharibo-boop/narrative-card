@@ -2247,13 +2247,7 @@ function drawDecoration(ctx, W, H, theme) {
         ctx.moveTo(W / 2 + 10, ornamentY); ctx.lineTo(W / 2 + 56, ornamentY);
         ctx.stroke();
 
-        // 중앙 제목과 우측 페이지 번호
-        ctx.globalAlpha = 0.88;
-        ctx.fillStyle = theme.text;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = `600 ${Math.max(17, Math.round(Math.min(W, H) * 0.040))}px "Noto Serif KR", Georgia, serif`;
-        ctx.fillText('고전 문학', W / 2, ornamentY + 30);
+        // 우측 상단의 작은 페이지 번호
         ctx.globalAlpha = 0.52;
         ctx.textAlign = 'right';
         ctx.font = `${Math.max(9, Math.round(Math.min(W, H) * 0.018))}px Georgia, serif`;
@@ -2309,25 +2303,6 @@ function drawDecoration(ctx, W, H, theme) {
         ctx.globalAlpha = 0.42;
         ctx.fillStyle = '#a9c8e2';
         ctx.fillRect(-34, -9, 68, 18);
-        ctx.restore();
-
-        // 테이프로 붙인 크림색 제목 메모
-        ctx.save();
-        ctx.translate(54, 34);
-        ctx.rotate(-0.045);
-        ctx.globalAlpha = 0.96;
-        ctx.shadowColor = 'rgba(54,90,120,0.12)';
-        ctx.shadowBlur = 8;
-        ctx.shadowOffsetY = 3;
-        ctx.fillStyle = '#fffaf0';
-        ctx.fillRect(0, 0, Math.min(184, W * 0.36), 42);
-        ctx.shadowColor = 'transparent';
-        ctx.globalAlpha = 0.86;
-        ctx.fillStyle = theme.text;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = `600 ${Math.max(14, Math.round(Math.min(W, H) * 0.031))}px "Noto Sans KR", sans-serif`;
-        ctx.fillText('청춘 다이어리', Math.min(184, W * 0.36) / 2, 22);
         ctx.restore();
 
         ctx.globalAlpha = 0.58;
@@ -2408,33 +2383,6 @@ function drawDecoration(ctx, W, H, theme) {
         };
         drawGingham(W - 78, 18, 7, 2, 8);
         drawGingham(22, H - 34, 6, 2, 7);
-
-        // 리본 스티커처럼 보이는 제목 라벨
-        const labelX = Math.max(34, W * 0.07);
-        const labelY = Math.max(34, H * 0.07);
-        const labelW = Math.min(176, W * 0.36);
-        const labelH = 42;
-        ctx.save();
-        ctx.translate(labelX + labelW / 2, labelY + labelH / 2);
-        ctx.rotate(-0.035);
-        ctx.globalAlpha = 0.94;
-        ctx.fillStyle = '#efafc2';
-        ctx.beginPath();
-        ctx.moveTo(-labelW / 2 + 8, -labelH / 2);
-        ctx.lineTo(labelW / 2 - 8, -labelH / 2);
-        ctx.lineTo(labelW / 2, 0);
-        ctx.lineTo(labelW / 2 - 8, labelH / 2);
-        ctx.lineTo(-labelW / 2 + 8, labelH / 2);
-        ctx.lineTo(-labelW / 2, 0);
-        ctx.closePath();
-        ctx.fill();
-        ctx.globalAlpha = 0.95;
-        ctx.fillStyle = '#a34563';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = `700 ${Math.max(14, Math.round(Math.min(W, H) * 0.031))}px "Noto Sans KR", sans-serif`;
-        ctx.fillText('키치 로맨스  ♥', 0, 1);
-        ctx.restore();
 
         ctx.globalAlpha = 0.76;
         ctx.fillStyle = theme.accent2;
