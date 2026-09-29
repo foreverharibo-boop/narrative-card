@@ -637,9 +637,6 @@ const THEMES = [
     { value: 'pastel_mint',   label: '🌿 파스텔 민트',      bg: '#e8faf4', text: '#1a5a40', sub: 'rgba(26,90,64,0.6)',    line: 'rgba(80,190,140,0.4)',  meta: 'rgba(26,90,64,0.45)',   accent: '#60c8a0', deco: 'leaves' },
     { value: 'pastel_butter', label: '🌼 파스텔 버터',      bg: '#fdfae8', text: '#6a5a10', sub: 'rgba(106,90,16,0.6)',   line: 'rgba(210,190,80,0.4)',  meta: 'rgba(106,90,16,0.45)',  accent: '#d4c040', deco: 'petals' },
     // 독특한 신규 테마
-    { value: 'classic_literature', label: '📚 고전 문학',        bg: '#f2eadc', text: '#31291f', sub: 'rgba(49,41,31,0.58)',    line: 'rgba(120,96,66,0.48)',  meta: 'rgba(49,41,31,0.48)',   accent: '#8f7654', accent2: '#c7ad82', deco: 'classic_literature' },
-    { value: 'youth_diary',       label: '📘 청춘 다이어리',    bg: '#eef5fb', text: '#365a78', sub: 'rgba(54,90,120,0.58)',   line: 'rgba(120,165,200,0.32)', meta: 'rgba(54,90,120,0.48)',   accent: '#8fb5d2', accent2: '#efb6c2', deco: 'youth_diary' },
-    { value: 'kitsch_romance',    label: '💗 키치 로맨스',      bg: '#fbe4ec', text: '#a34563', sub: 'rgba(163,69,99,0.58)',   line: 'rgba(163,69,99,0.25)',  meta: 'rgba(163,69,99,0.48)',  accent: '#9fd4c2', accent2: '#e89ab2', deco: 'kitsch_romance' },
     { value: 'bubblegum',   label: '🍬 버블검 (파스텔 핑크 팝)', bg: '#f5d5e2', text: '#704057', sub: 'rgba(112,64,87,0.58)',   line: 'rgba(112,64,87,0.20)',  meta: 'rgba(112,64,87,0.46)',  accent: '#fff8fb', accent2: '#f4e4bd', deco: 'bubblegum' },
     { value: 'galaxy',      label: '🌌 갤럭시 (우주 그라디언트)', bg: '#0a0015', text: '#e8d8ff', sub: 'rgba(232,216,255,0.55)', line: 'rgba(150,100,255,0.3)', meta: 'rgba(232,216,255,0.45)', accent: '#c78fff', accent2: '#7fffd4', deco: 'galaxy' },
     { value: 'cottagecore', label: '🌾 코티지코어 (들꽃과 나무)', bg: '#f7f0e3', text: '#3b2a14', sub: 'rgba(59,42,20,0.55)',   line: 'rgba(59,42,20,0.25)',   meta: 'rgba(59,42,20,0.45)',   accent: '#c9935a', accent2: '#7ab87a', deco: 'cottagecore' },
@@ -667,6 +664,10 @@ const THEMES = [
     { value: 'ironman_lab',         label: '🦾 아이언맨 — 스타크 화이트 랩', bg: '#eef3f6', text: '#20282d', sub: 'rgba(32,40,45,0.55)', line: 'rgba(180,138,69,0.45)', meta: 'rgba(68,82,90,0.72)', accent: '#2a9db4', accent2: '#b48a45', deco: 'ironman_lab' },
     { value: 'strange_manuscript',  label: '🔮 닥터 스트레인지 — 생텀 고문서', bg: '#e8dcc2', text: '#34261d', sub: 'rgba(52,38,29,0.58)', line: 'rgba(155,111,50,0.5)', meta: 'rgba(93,67,48,0.72)', accent: '#7d2631', accent2: '#9b6f32', deco: 'strange_manuscript' },
     { value: 'spiderman_night',     label: '🕷️ 스파이더맨 — 퀸즈 애프터 다크', bg: '#0a2035', text: '#f5f4ef', sub: 'rgba(245,244,239,0.58)', line: 'rgba(239,76,90,0.45)', meta: 'rgba(184,207,219,0.72)', accent: '#ef4c5a', accent2: '#d5a856', deco: 'spiderman_night' },
+    // 새 테마는 항상 이 목록의 맨 마지막에 추가
+    { value: 'classic_literature', label: '📚 고전 문학',     bg: '#f2eadc', text: '#31291f', sub: 'rgba(49,41,31,0.58)',  line: 'rgba(120,96,66,0.48)',   meta: 'rgba(49,41,31,0.48)',  accent: '#8f7654', accent2: '#c7ad82', deco: 'classic_literature' },
+    { value: 'youth_diary',       label: '📘 청춘 다이어리', bg: '#eef5fb', text: '#365a78', sub: 'rgba(54,90,120,0.58)', line: 'rgba(120,165,200,0.32)', meta: 'rgba(54,90,120,0.48)', accent: '#8fb5d2', accent2: '#efb6c2', deco: 'youth_diary' },
+    { value: 'kitsch_romance',    label: '💗 키치 로맨스',   bg: '#fbe4ec', text: '#a34563', sub: 'rgba(163,69,99,0.58)', line: 'rgba(163,69,99,0.25)',  meta: 'rgba(163,69,99,0.48)', accent: '#9fd4c2', accent2: '#e89ab2', deco: 'kitsch_romance' },
 ];
 
 
@@ -2246,6 +2247,38 @@ function drawDecoration(ctx, W, H, theme) {
         ctx.moveTo(W / 2 + 10, ornamentY); ctx.lineTo(W / 2 + 56, ornamentY);
         ctx.stroke();
 
+        // 중앙 제목과 우측 페이지 번호
+        ctx.globalAlpha = 0.88;
+        ctx.fillStyle = theme.text;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `600 ${Math.max(17, Math.round(Math.min(W, H) * 0.040))}px "Noto Serif KR", Georgia, serif`;
+        ctx.fillText('고전 문학', W / 2, ornamentY + 30);
+        ctx.globalAlpha = 0.52;
+        ctx.textAlign = 'right';
+        ctx.font = `${Math.max(9, Math.round(Math.min(W, H) * 0.018))}px Georgia, serif`;
+        ctx.fillText('NARRATIVE · 128', W - outer - 14, outer + 15);
+
+        // 우측 하단의 마른 꽃 실루엣
+        const stemX = W - outer - 34;
+        const stemBottom = H - outer - 4;
+        ctx.globalAlpha = 0.50;
+        ctx.strokeStyle = theme.accent;
+        ctx.fillStyle = theme.accent2;
+        ctx.lineWidth = 1;
+        [-18, 0, 16].forEach((dx, i) => {
+            const topY = stemBottom - 56 - i * 9;
+            ctx.beginPath();
+            ctx.moveTo(stemX, stemBottom);
+            ctx.quadraticCurveTo(stemX + dx * 0.3, stemBottom - 30, stemX + dx, topY);
+            ctx.stroke();
+            [[-4, -2], [4, 1], [0, -5]].forEach(([px, py]) => {
+                ctx.beginPath();
+                ctx.arc(stemX + dx + px, topY + py, 2.2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        });
+
     } else if (theme.deco === 'youth_diary') {
         // ── 청춘 다이어리: 파스텔 모눈 종이 + 테이프 + 작은 낙서 ──
         ctx.globalAlpha = 1;
@@ -2278,6 +2311,25 @@ function drawDecoration(ctx, W, H, theme) {
         ctx.fillRect(-34, -9, 68, 18);
         ctx.restore();
 
+        // 테이프로 붙인 크림색 제목 메모
+        ctx.save();
+        ctx.translate(54, 34);
+        ctx.rotate(-0.045);
+        ctx.globalAlpha = 0.96;
+        ctx.shadowColor = 'rgba(54,90,120,0.12)';
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetY = 3;
+        ctx.fillStyle = '#fffaf0';
+        ctx.fillRect(0, 0, Math.min(184, W * 0.36), 42);
+        ctx.shadowColor = 'transparent';
+        ctx.globalAlpha = 0.86;
+        ctx.fillStyle = theme.text;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `600 ${Math.max(14, Math.round(Math.min(W, H) * 0.031))}px "Noto Sans KR", sans-serif`;
+        ctx.fillText('청춘 다이어리', Math.min(184, W * 0.36) / 2, 22);
+        ctx.restore();
+
         ctx.globalAlpha = 0.58;
         ctx.strokeStyle = theme.accent;
         ctx.lineWidth = 1.4;
@@ -2291,6 +2343,24 @@ function drawDecoration(ctx, W, H, theme) {
         ctx.textAlign = 'left';
         ctx.textBaseline = 'alphabetic';
         ctx.strokeText('♡', 32, H - 34);
+
+        // 오른쪽 아래 작은 압화 장식
+        ctx.globalAlpha = 0.50;
+        ctx.strokeStyle = '#789b72';
+        ctx.fillStyle = '#f2c7cf';
+        ctx.lineWidth = 1;
+        const flowerBaseX = W - 82;
+        const flowerBaseY = H - 20;
+        [-18, 0, 15].forEach((dx, i) => {
+            const topY = flowerBaseY - 42 - i * 8;
+            ctx.beginPath();
+            ctx.moveTo(flowerBaseX, flowerBaseY);
+            ctx.quadraticCurveTo(flowerBaseX + dx * 0.3, flowerBaseY - 20, flowerBaseX + dx, topY);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(flowerBaseX + dx, topY, 3, 0, Math.PI * 2);
+            ctx.fill();
+        });
 
     } else if (theme.deco === 'kitsch_romance') {
         // ── 키치 로맨스: 파스텔 핑크 + 민트 이중 프레임 + 하트 스티커 ──
@@ -2339,6 +2409,33 @@ function drawDecoration(ctx, W, H, theme) {
         drawGingham(W - 78, 18, 7, 2, 8);
         drawGingham(22, H - 34, 6, 2, 7);
 
+        // 리본 스티커처럼 보이는 제목 라벨
+        const labelX = Math.max(34, W * 0.07);
+        const labelY = Math.max(34, H * 0.07);
+        const labelW = Math.min(176, W * 0.36);
+        const labelH = 42;
+        ctx.save();
+        ctx.translate(labelX + labelW / 2, labelY + labelH / 2);
+        ctx.rotate(-0.035);
+        ctx.globalAlpha = 0.94;
+        ctx.fillStyle = '#efafc2';
+        ctx.beginPath();
+        ctx.moveTo(-labelW / 2 + 8, -labelH / 2);
+        ctx.lineTo(labelW / 2 - 8, -labelH / 2);
+        ctx.lineTo(labelW / 2, 0);
+        ctx.lineTo(labelW / 2 - 8, labelH / 2);
+        ctx.lineTo(-labelW / 2 + 8, labelH / 2);
+        ctx.lineTo(-labelW / 2, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = '#a34563';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `700 ${Math.max(14, Math.round(Math.min(W, H) * 0.031))}px "Noto Sans KR", sans-serif`;
+        ctx.fillText('키치 로맨스  ♥', 0, 1);
+        ctx.restore();
+
         ctx.globalAlpha = 0.76;
         ctx.fillStyle = theme.accent2;
         ctx.font = `bold ${Math.max(18, Math.round(W * 0.035))}px sans-serif`;
@@ -2351,6 +2448,42 @@ function drawDecoration(ctx, W, H, theme) {
         ctx.font = `bold ${Math.max(13, Math.round(W * 0.022))}px sans-serif`;
         ctx.fillText('✦', 54, 58);
         ctx.fillText('✧', W - 62, H - 58);
+
+        // 하단 우측 파스텔 튤립 부케
+        const bouquetX = W - 58;
+        const bouquetY = H - 24;
+        const tulips = [
+            { dx: -22, dy: -54, c: '#eaa0b6', r: -0.20 },
+            { dx: -4,  dy: -66, c: '#f3b2c2', r: 0.03 },
+            { dx: 14,  dy: -51, c: '#e894ad', r: 0.22 },
+        ];
+        tulips.forEach(t => {
+            ctx.save();
+            ctx.translate(bouquetX, bouquetY);
+            ctx.rotate(t.r);
+            ctx.globalAlpha = 0.64;
+            ctx.strokeStyle = '#78a88d';
+            ctx.lineWidth = 1.4;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.quadraticCurveTo(t.dx * 0.35, t.dy * 0.48, t.dx, t.dy + 7);
+            ctx.stroke();
+            ctx.fillStyle = t.c;
+            ctx.beginPath();
+            ctx.moveTo(t.dx - 7, t.dy + 5);
+            ctx.quadraticCurveTo(t.dx - 8, t.dy - 8, t.dx, t.dy - 10);
+            ctx.quadraticCurveTo(t.dx + 8, t.dy - 8, t.dx + 7, t.dy + 5);
+            ctx.quadraticCurveTo(t.dx, t.dy + 10, t.dx - 7, t.dy + 5);
+            ctx.fill();
+            ctx.restore();
+        });
+        ctx.globalAlpha = 0.45;
+        ctx.fillStyle = '#8bb9a5';
+        [[-20,-28],[2,-37],[18,-24]].forEach(([dx, dy]) => {
+            ctx.beginPath();
+            ctx.ellipse(bouquetX + dx, bouquetY + dy, 7, 3.3, dx * 0.035, 0, Math.PI * 2);
+            ctx.fill();
+        });
 
     } else if (theme.deco === 'bubblegum') {
         // ── 버블검: 부드러운 파스텔 핑크 그라디언트 + 물방울 + 별 반짝이 ──
