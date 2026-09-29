@@ -55,6 +55,23 @@ const CARD_FONTS = [
     { value: 'montserrat', label: '🔠 몬세라트 (영문 지오메트릭)', family: '"Montserrat"', google: 'Montserrat:wght@400;700' },
     { value: 'yesgothic',  label: '📗 예스고딕 (단정한 고딕)', family: '"YesGothic"',
       inlineCss: `@font-face { font-family: 'YesGothic'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_13@1.0/YESGothic-Regular.woff') format('woff'); font-weight: normal; font-display: swap; } @font-face { font-family: 'YesGothic'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_13@1.0/YESGothic-Bold.woff') format('woff'); font-weight: 700; font-display: swap; }` },
+    // 새 글꼴은 항상 이 목록의 맨 마지막에 추가
+    { value: 'cafe24_gounbam', label: '🌙 카페24 고운밤', family: '"Cafe24Oneprettynight"',
+      inlineCss: `@font-face { font-family: 'Cafe24Oneprettynight'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_twelve@1.1/Cafe24Oneprettynight.woff') format('woff'); font-weight: normal; font-display: swap; }` },
+    { value: 'kcc_eunyeong', label: '🖋️ KCC 은영체', family: '"KccEunyeong"',
+      inlineCss: `@font-face { font-family: 'KccEunyeong'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_one@1.0/KCC-eunyoung-Regular.woff') format('woff'); font-weight: normal; font-display: swap; }` },
+    { value: 'binggrae_melona', label: '🍈 빙그레 메로나체', family: '"BinggraeMelona"',
+      inlineCss: `@font-face { font-family: 'BinggraeMelona'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_twelve@1.0/BinggraeMelona.woff') format('woff'); font-weight: normal; font-display: swap; }` },
+    { value: 'one_mobile', label: '📱 원스토어 모바일고딕', family: '"OneMobile"',
+      inlineCss: `@font-face { font-family: 'OneMobile'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2105_2@1.0/ONE-Mobile-Regular.woff') format('woff'); font-weight: normal; font-display: swap; }` },
+    { value: 'cafe24_ssukssuk', label: '🌱 카페24 쑥쑥', family: '"Cafe24Ssukssuk"',
+      inlineCss: `@font-face { font-family: 'Cafe24Ssukssuk'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_twelve@1.1/Cafe24Ssukssuk.woff') format('woff'); font-weight: normal; font-display: swap; }` },
+    { value: 'cafe24_shiningstar', label: '✨ 카페24 빛나는별', family: '"Cafe24Shiningstar"',
+      inlineCss: `@font-face { font-family: 'Cafe24Shiningstar'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_twelve@1.1/Cafe24Shiningstar.woff') format('woff'); font-weight: normal; font-display: swap; }` },
+    { value: 'sd_misaeng', label: '📝 미생체', family: '"SDMiSaeng"',
+      inlineCss: `@font-face { font-family: 'SDMiSaeng'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_two@1.0/SDMiSaeng.woff') format('woff'); font-weight: normal; font-display: swap; }` },
+    { value: 'komacon', label: '💬 만화진흥원체', family: '"KOMACON"',
+      inlineCss: `@font-face { font-family: 'KOMACON'; src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_seven@1.2/KOMACON.woff') format('woff'); font-weight: normal; font-display: swap; }` },
 ];
 function getFontDef(value) {
     // ST 안에 이미 등록돼 있는(다른 폰트 확장 등이 @font-face로 넣어둔) 폰트는
@@ -80,6 +97,8 @@ function detectInstalledFonts() {
         'Pretendard', 'Ridibatang', 'Paperlogy', 'GMarketSans', 'Escoredream', 'Suit',
         'Sweet', 'BookkMyungjo', 'Maru Buri', 'ChangwonDangamRounded', 'Mona12',
         'JalpulrineunHaruche', 'Gothic A1', 'Gowun Batang', 'Montserrat', 'YesGothic',
+        'Cafe24Oneprettynight', 'KccEunyeong', 'BinggraeMelona', 'OneMobile',
+        'Cafe24Ssukssuk', 'Cafe24Shiningstar', 'SDMiSaeng', 'KOMACON',
         'FontAwesome', 'Font Awesome 5 Free', 'Font Awesome 6 Free', 'Font Awesome 6 Pro',
     ]);
     const found = new Set();
@@ -665,9 +684,9 @@ const THEMES = [
     { value: 'strange_manuscript',  label: '🔮 닥터 스트레인지 — 생텀 고문서', bg: '#e8dcc2', text: '#34261d', sub: 'rgba(52,38,29,0.58)', line: 'rgba(155,111,50,0.5)', meta: 'rgba(93,67,48,0.72)', accent: '#7d2631', accent2: '#9b6f32', deco: 'strange_manuscript' },
     { value: 'spiderman_night',     label: '🕷️ 스파이더맨 — 퀸즈 애프터 다크', bg: '#0a2035', text: '#f5f4ef', sub: 'rgba(245,244,239,0.58)', line: 'rgba(239,76,90,0.45)', meta: 'rgba(184,207,219,0.72)', accent: '#ef4c5a', accent2: '#d5a856', deco: 'spiderman_night' },
     // 새 테마는 항상 이 목록의 맨 마지막에 추가
-    { value: 'classic_literature', label: '📚 고전 문학',     bg: '#f2eadc', text: '#31291f', sub: 'rgba(49,41,31,0.58)',  line: 'rgba(120,96,66,0.48)',   meta: 'rgba(49,41,31,0.48)',  accent: '#8f7654', accent2: '#c7ad82', deco: 'classic_literature' },
-    { value: 'youth_diary',       label: '📘 청춘 다이어리', bg: '#eef5fb', text: '#365a78', sub: 'rgba(54,90,120,0.58)', line: 'rgba(120,165,200,0.32)', meta: 'rgba(54,90,120,0.48)', accent: '#8fb5d2', accent2: '#efb6c2', deco: 'youth_diary' },
-    { value: 'kitsch_romance',    label: '💗 키치 로맨스',   bg: '#fbe4ec', text: '#a34563', sub: 'rgba(163,69,99,0.58)', line: 'rgba(163,69,99,0.25)',  meta: 'rgba(163,69,99,0.48)', accent: '#9fd4c2', accent2: '#e89ab2', deco: 'kitsch_romance' },
+    { value: 'classic_literature', label: '📚 고전 문학',     bg: '#f5f0e7', text: '#302b25', sub: 'rgba(48,43,37,0.56)',  line: 'rgba(117,101,82,0.28)', meta: 'rgba(48,43,37,0.46)', accent: '#9a8873', deco: 'classic_literature' },
+    { value: 'youth_diary',       label: '📘 청춘 다이어리', bg: '#f3f8fb', text: '#31546e', sub: 'rgba(49,84,110,0.56)', line: 'rgba(116,164,199,0.23)', meta: 'rgba(49,84,110,0.46)', accent: '#8fb1ca', deco: 'youth_diary' },
+    { value: 'kitsch_romance',    label: '💗 키치 로맨스',   bg: '#fae8ee', text: '#8e4b62', sub: 'rgba(142,75,98,0.56)', line: 'rgba(142,75,98,0.20)',  meta: 'rgba(142,75,98,0.46)', accent: '#a9cbbf', accent2: '#d999ad', deco: 'kitsch_romance' },
 ];
 
 
@@ -2122,67 +2141,6 @@ function drawDecoration(ctx, W, H, theme) {
     const rand = seededRandom(42);
     ctx.save();
 
-    const drawFullBouquet = (baseX, baseY, scale, stemColor, flowerColors, alpha = 0.64) => {
-        const blooms = [
-            { dx: -54, dy: -142, size: 8 },
-            { dx: -35, dy: -168, size: 9 },
-            { dx: -15, dy: -132, size: 7 },
-            { dx: 5,   dy: -158, size: 8 },
-            { dx: 24,  dy: -126, size: 7 },
-            { dx: 38,  dy: -148, size: 8 },
-        ];
-        blooms.forEach((b, i) => {
-            const dx = b.dx * scale;
-            const dy = b.dy * scale;
-            const size = b.size * scale;
-            ctx.globalAlpha = alpha;
-            ctx.strokeStyle = stemColor;
-            ctx.lineWidth = Math.max(1, 1.45 * scale);
-            ctx.beginPath();
-            ctx.moveTo(baseX, baseY);
-            ctx.quadraticCurveTo(baseX + dx * 0.28, baseY + dy * 0.48, baseX + dx, baseY + dy + size * 0.8);
-            ctx.stroke();
-
-            // 양쪽 잎
-            [[0.42, -1], [0.62, 1]].forEach(([at, side]) => {
-                const lx = baseX + dx * at;
-                const ly = baseY + dy * at;
-                ctx.save();
-                ctx.translate(lx, ly);
-                ctx.rotate(Math.atan2(dy, dx) + side * 0.72);
-                ctx.fillStyle = stemColor;
-                ctx.globalAlpha = alpha * 0.72;
-                ctx.beginPath();
-                ctx.ellipse(0, 0, 10 * scale, 3.7 * scale, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            });
-
-            // 다섯 장의 둥근 꽃잎
-            ctx.fillStyle = flowerColors[i % flowerColors.length];
-            ctx.globalAlpha = alpha;
-            for (let p = 0; p < 5; p++) {
-                const a = (Math.PI * 2 * p) / 5 - Math.PI / 2;
-                ctx.beginPath();
-                ctx.ellipse(
-                    baseX + dx + Math.cos(a) * size * 0.48,
-                    baseY + dy + Math.sin(a) * size * 0.48,
-                    size * 0.54,
-                    size * 0.72,
-                    a,
-                    0,
-                    Math.PI * 2,
-                );
-                ctx.fill();
-            }
-            ctx.fillStyle = flowerColors[(i + 1) % flowerColors.length];
-            ctx.globalAlpha = Math.min(1, alpha + 0.12);
-            ctx.beginPath();
-            ctx.arc(baseX + dx, baseY + dy, size * 0.32, 0, Math.PI * 2);
-            ctx.fill();
-        });
-    };
-
     if (theme.deco === 'petals') {
         for (let i = 0; i < 14; i++) {
             const x = rand() * W;
@@ -2265,74 +2223,37 @@ function drawDecoration(ctx, W, H, theme) {
         }
 
     } else if (theme.deco === 'classic_literature') {
-        // ── 고전 문학: 크림 종이 + 이중 프레임 + 고전 장식 ──
-        const paper = ctx.createRadialGradient(W * 0.5, H * 0.42, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.72);
-        paper.addColorStop(0, '#f8f2e7');
-        paper.addColorStop(0.72, '#f1e8d8');
-        paper.addColorStop(1, '#e7dac5');
+        // ── 고전 문학: 장식을 걷어낸 따뜻한 아이보리 책장 ──
+        const paper = ctx.createLinearGradient(0, 0, W, H);
+        paper.addColorStop(0, '#faf7f1');
+        paper.addColorStop(1, '#f1eadf');
         ctx.globalAlpha = 1;
         ctx.fillStyle = paper;
         ctx.fillRect(0, 0, W, H);
 
-        for (let i = 0; i < 110; i++) {
-            ctx.globalAlpha = 0.025 + rand() * 0.025;
-            ctx.fillStyle = '#6f583c';
+        for (let i = 0; i < 48; i++) {
+            ctx.globalAlpha = 0.018 + rand() * 0.018;
+            ctx.fillStyle = '#635543';
             ctx.beginPath();
-            ctx.arc(rand() * W, rand() * H, 0.35 + rand() * 0.8, 0, Math.PI * 2);
+            ctx.arc(rand() * W, rand() * H, 0.35 + rand() * 0.55, 0, Math.PI * 2);
             ctx.fill();
         }
 
-        const outer = Math.round(Math.min(W, H) * 0.034);
-        ctx.globalAlpha = 0.64;
+        const outer = Math.round(Math.min(W, H) * 0.038);
+        ctx.globalAlpha = 0.48;
         ctx.strokeStyle = theme.accent;
-        ctx.lineWidth = 1.2;
+        ctx.lineWidth = 1;
         ctx.strokeRect(outer, outer, W - outer * 2, H - outer * 2);
-        ctx.globalAlpha = 0.34;
-        ctx.lineWidth = 0.8;
-        ctx.strokeRect(outer + 6, outer + 6, W - (outer + 6) * 2, H - (outer + 6) * 2);
-
-        const ornamentY = outer + 18;
-        ctx.globalAlpha = 0.58;
-        ctx.fillStyle = theme.accent;
-        ctx.beginPath();
-        ctx.moveTo(W / 2, ornamentY - 4);
-        ctx.lineTo(W / 2 + 5, ornamentY);
-        ctx.lineTo(W / 2, ornamentY + 4);
-        ctx.lineTo(W / 2 - 5, ornamentY);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = theme.accent;
-        ctx.lineWidth = 0.8;
-        ctx.beginPath();
-        ctx.moveTo(W / 2 - 56, ornamentY); ctx.lineTo(W / 2 - 10, ornamentY);
-        ctx.moveTo(W / 2 + 10, ornamentY); ctx.lineTo(W / 2 + 56, ornamentY);
-        ctx.stroke();
-
-        // 우측 상단의 작은 페이지 번호
-        ctx.globalAlpha = 0.52;
-        ctx.textAlign = 'right';
-        ctx.font = `${Math.max(9, Math.round(Math.min(W, H) * 0.018))}px Georgia, serif`;
-        ctx.fillText('NARRATIVE · 128', W - outer - 14, outer + 15);
-
-        // 우측 하단의 크고 풍성한 빈티지 부케
-        drawFullBouquet(
-            W - outer - 22,
-            H - outer - 2,
-            Math.min(W, H) / 570,
-            '#8b7654',
-            ['#c5a36f', '#dbc394', '#b88b58', '#ead9b5'],
-            0.62,
-        );
 
     } else if (theme.deco === 'youth_diary') {
-        // ── 청춘 다이어리: 파스텔 모눈 종이 + 테이프 + 작은 낙서 ──
+        // ── 청춘 다이어리: 여백 많은 하늘색 모눈 메모 ──
         ctx.globalAlpha = 1;
-        ctx.fillStyle = '#f2f7fb';
+        ctx.fillStyle = '#f5f9fc';
         ctx.fillRect(0, 0, W, H);
         const grid = Math.max(18, Math.round(Math.min(W, H) * 0.038));
         ctx.strokeStyle = theme.line;
-        ctx.lineWidth = 0.75;
-        ctx.globalAlpha = 0.56;
+        ctx.lineWidth = 0.65;
+        ctx.globalAlpha = 0.46;
         for (let x = grid; x < W; x += grid) {
             ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
         }
@@ -2340,52 +2261,32 @@ function drawDecoration(ctx, W, H, theme) {
             ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
         }
 
-        for (let y = 36; y < H - 26; y += Math.max(42, Math.round(H * 0.095))) {
-            ctx.globalAlpha = 0.52;
+        ctx.globalAlpha = 0.24;
+        ctx.strokeStyle = theme.accent;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(32, 0); ctx.lineTo(32, H); ctx.stroke();
+
+        for (let y = 44; y < H - 28; y += Math.max(52, Math.round(H * 0.105))) {
+            ctx.globalAlpha = 0.42;
             ctx.fillStyle = '#ffffff';
-            ctx.beginPath(); ctx.arc(14, y, 5.2, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(15, y, 4.8, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = 'rgba(91,126,153,0.22)';
             ctx.stroke();
         }
 
         ctx.save();
-        ctx.translate(W * 0.84, 24);
-        ctx.rotate(0.14);
-        ctx.globalAlpha = 0.42;
-        ctx.fillStyle = '#a9c8e2';
-        ctx.fillRect(-34, -9, 68, 18);
+        ctx.translate(W * 0.82, 22);
+        ctx.rotate(0.10);
+        ctx.globalAlpha = 0.32;
+        ctx.fillStyle = '#a9c6dc';
+        ctx.fillRect(-31, -7, 62, 14);
         ctx.restore();
 
-        ctx.globalAlpha = 0.58;
-        ctx.strokeStyle = theme.accent;
-        ctx.lineWidth = 1.4;
-        ctx.beginPath();
-        ctx.moveTo(W - 67, H - 62); ctx.lineTo(W - 32, H - 78); ctx.lineTo(W - 47, H - 45);
-        ctx.closePath(); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(W - 66, H - 62); ctx.lineTo(W - 47, H - 45); ctx.stroke();
-        ctx.globalAlpha = 0.62;
-        ctx.strokeStyle = theme.accent2;
-        ctx.font = `${Math.max(16, Math.round(W * 0.03))}px sans-serif`;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'alphabetic';
-        ctx.strokeText('♡', 32, H - 34);
-
-        // 오른쪽 아래의 크고 풍성한 파스텔 압화 부케
-        drawFullBouquet(
-            W - 58,
-            H - 18,
-            Math.min(W, H) / 570,
-            '#77a083',
-            ['#efb3c1', '#c5b4df', '#a9cce3', '#f4d7a7'],
-            0.66,
-        );
-
     } else if (theme.deco === 'kitsch_romance') {
-        // ── 키치 로맨스: 파스텔 핑크 + 민트 이중 프레임 + 하트 스티커 ──
+        // ── 키치 로맨스: 연분홍 엽서 + 아주 작은 포인트 ──
         const pink = ctx.createLinearGradient(0, 0, W, H);
-        pink.addColorStop(0, '#fcecf1');
-        pink.addColorStop(0.52, '#f9dfe8');
-        pink.addColorStop(1, '#fce9ef');
+        pink.addColorStop(0, '#fff4f7');
+        pink.addColorStop(1, '#f8e1e9');
         ctx.globalAlpha = 1;
         ctx.fillStyle = pink;
         ctx.fillRect(0, 0, W, H);
@@ -2404,77 +2305,22 @@ function drawDecoration(ctx, W, H, theme) {
             ctx.closePath();
         };
         const margin = Math.round(Math.min(W, H) * 0.034);
-        ctx.globalAlpha = 0.78;
+        ctx.globalAlpha = 0.58;
         ctx.strokeStyle = theme.accent;
-        ctx.lineWidth = 2;
-        drawRoundedFrame(margin, margin, W - margin * 2, H - margin * 2, 18);
-        ctx.stroke();
-        ctx.globalAlpha = 0.34;
-        ctx.strokeStyle = theme.accent2;
-        ctx.lineWidth = 1;
-        drawRoundedFrame(margin + 6, margin + 6, W - (margin + 6) * 2, H - (margin + 6) * 2, 14);
+        ctx.lineWidth = 1.25;
+        drawRoundedFrame(margin, margin, W - margin * 2, H - margin * 2, 15);
         ctx.stroke();
 
-        const drawGingham = (x, y, cols, rows, cell) => {
-            for (let gy = 0; gy < rows; gy++) {
-                for (let gx = 0; gx < cols; gx++) {
-                    ctx.globalAlpha = (gx + gy) % 2 === 0 ? 0.30 : 0.12;
-                    ctx.fillStyle = theme.accent2;
-                    ctx.fillRect(x + gx * cell, y + gy * cell, cell, cell);
-                }
-            }
-        };
-        drawGingham(W - 78, 18, 7, 2, 8);
-        drawGingham(22, H - 34, 6, 2, 7);
-
-        ctx.globalAlpha = 0.76;
+        ctx.globalAlpha = 0.52;
         ctx.fillStyle = theme.accent2;
-        ctx.font = `bold ${Math.max(18, Math.round(W * 0.035))}px sans-serif`;
+        ctx.font = `${Math.max(15, Math.round(W * 0.026))}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('♥', W - 46, 62);
-        ctx.globalAlpha = 0.55;
-        ctx.fillText('♡', 48, H - 60);
+        ctx.fillText('♥', W - margin - 17, margin + 20);
+        ctx.globalAlpha = 0.42;
         ctx.fillStyle = theme.accent;
-        ctx.font = `bold ${Math.max(13, Math.round(W * 0.022))}px sans-serif`;
-        ctx.fillText('✦', 54, 58);
-        ctx.fillText('✧', W - 62, H - 58);
-
-        // 하단 우측 파스텔 튤립 부케
-        const bouquetX = W - 58;
-        const bouquetY = H - 24;
-        const tulips = [
-            { dx: -22, dy: -54, c: '#eaa0b6', r: -0.20 },
-            { dx: -4,  dy: -66, c: '#f3b2c2', r: 0.03 },
-            { dx: 14,  dy: -51, c: '#e894ad', r: 0.22 },
-        ];
-        tulips.forEach(t => {
-            ctx.save();
-            ctx.translate(bouquetX, bouquetY);
-            ctx.rotate(t.r);
-            ctx.globalAlpha = 0.64;
-            ctx.strokeStyle = '#78a88d';
-            ctx.lineWidth = 1.4;
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.quadraticCurveTo(t.dx * 0.35, t.dy * 0.48, t.dx, t.dy + 7);
-            ctx.stroke();
-            ctx.fillStyle = t.c;
-            ctx.beginPath();
-            ctx.moveTo(t.dx - 7, t.dy + 5);
-            ctx.quadraticCurveTo(t.dx - 8, t.dy - 8, t.dx, t.dy - 10);
-            ctx.quadraticCurveTo(t.dx + 8, t.dy - 8, t.dx + 7, t.dy + 5);
-            ctx.quadraticCurveTo(t.dx, t.dy + 10, t.dx - 7, t.dy + 5);
-            ctx.fill();
-            ctx.restore();
-        });
-        ctx.globalAlpha = 0.45;
-        ctx.fillStyle = '#8bb9a5';
-        [[-20,-28],[2,-37],[18,-24]].forEach(([dx, dy]) => {
-            ctx.beginPath();
-            ctx.ellipse(bouquetX + dx, bouquetY + dy, 7, 3.3, dx * 0.035, 0, Math.PI * 2);
-            ctx.fill();
-        });
+        ctx.font = `${Math.max(12, Math.round(W * 0.020))}px sans-serif`;
+        ctx.fillText('✦', margin + 18, H - margin - 17);
 
     } else if (theme.deco === 'bubblegum') {
         // ── 버블검: 부드러운 파스텔 핑크 그라디언트 + 물방울 + 별 반짝이 ──
