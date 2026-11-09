@@ -1,3 +1,4 @@
+import { cardHeaders, equalStoredValue, lazyCardImages } from './gallery-storage.mjs';
 /**
  * 📜 Narrative Card - SillyTavern Extension
  * 사용자가 직접 드래그한 텍스트를 발췌해 카드 이미지로 만듭니다.
@@ -3539,9 +3540,7 @@ async function deleteCard(id) {
 
 async function getAllCards() {
     try {
-        const records = await idbGetAll(CARD_STORE);
-        records.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-        return await Promise.all(records.map(hydrateCardRecord));
+        return await cardHeaders(await openNarrativeDb(), CARD_STORE);
     } catch (e) {
         console.warn('[NarrativeCard] DB 갤러리 불러오기 실패:', e);
         return [];
@@ -3613,32 +3612,35 @@ async function migrateLegacySettingsGallery(force = false) {
     Object.keys(legacy.cards).forEach(id => {
         if (!orderedIds.includes(String(id))) orderedIds.push(String(id));
     });
-    const existingRecords = await idbGetAll(CARD_STORE);
     let migrated = 0;
     for (const id of orderedIds) {
         const old = legacy.cards[id];
         if (!old) continue;
         const imageBlob = dataUrlToBlob(old.dataUrl);
-        if (!imageBlob) continue;
-        // v1은 같은 DB의 카드를 settings로 복사하되 원본 DB를 남겨뒀다.
-        // 되돌려 가져올 때 id가 달라도 동일 카드면 중복 생성하지 않는다.
-        const alreadyExists = existingRecords.some(record =>
-            String(record.id) === String(id)
-            || (record.dataUrl && record.dataUrl === old.dataUrl
-                && (record.createdAt || 0) === (old.createdAt || 0))
-            || (record.imageBlob?.size === imageBlob.size
-                && (record.createdAt || 0) === (old.createdAt || 0)
-                && (record.charName || '') === (old.charName || ''))
-        );
-        if (alreadyExists) continue;
-        await idbPut(CARD_STORE, {
-            id,
-            charName: old.charName || '',
-            createdAt: old.createdAt || Date.now(),
-            imageBlob,
-            meta: await prepareMetaForDb(old.meta || {}),
-        });
-        existingRecords.push({ id, charName: old.charName || '', createdAt: old.createdAt || 0, imageBlob });
+        if (!imageBlob) throw new Error('이전 카드 사진을 읽지 못해 원본을 유지합니다.');
+        const candidate = { id, charName: old.charName || '', createdAt: old.createdAt || 0,
+            imageBlob, meta: await prepareMetaForDb(old.meta || {}) };
+        if (old.meta?.style?.bgImageDataUrl && !candidate.meta.style.backgroundBlob)
+            throw new Error('이전 카드 배경을 읽지 못해 원본을 유지합니다.');
+        let existing = await idbGet(CARD_STORE, id);
+        const same = async record => !!record && record.charName === candidate.charName
+            && (record.createdAt || 0) === candidate.createdAt
+            && await equalStoredValue(record.imageBlob || dataUrlToBlob(record.dataUrl), imageBlob)
+            && await equalStoredValue(record.meta, candidate.meta);
+        if (await same(existing)) continue;
+        // An edited card using this ID is not proof that the old image is backed up.
+        // Keep both; compare actual bytes, never just equal dimensions/file sizes.
+        if (existing) {
+            let suffix = 0;
+            do {
+                candidate.id = `legacy-settings:${id}:${suffix++}`;
+                existing = await idbGet(CARD_STORE, candidate.id);
+            } while (existing && !await same(existing));
+            if (existing) continue;
+        }
+        await idbPut(CARD_STORE, candidate);
+        if (!await same(await idbGet(CARD_STORE, candidate.id)))
+            throw new Error('이전 카드 저장 검증에 실패해 원본을 유지합니다.');
         migrated++;
     }
     settings[SETTINGS_MIGRATION_FLAG] = true;
@@ -3843,7 +3845,10 @@ async function openGallery() {
     const grid = document.createElement('div');
     grid.className = 'ncard-grid';
     const countSpan = head.querySelector('span');
+    const images = lazyCardImages(id => idbGet(CARD_STORE, id), overlay);
+    const readCard = async c => { const record = await idbGet(CARD_STORE, c.id); if (!record) throw new Error('카드를 찾을 수 없어요.'); return hydrateCardRecord(record); };
     function renderGrid(cardList) {
+        images.clear();
         grid.innerHTML = '';
         if (cardList.length === 0) {
             grid.innerHTML = '<p style="color:#666;font-size:13px;grid-column:1/-1;text-align:center;padding:40px 0;">아직 생성된 카드가 없습니다.</p>';
@@ -3854,11 +3859,14 @@ async function openGallery() {
             item.style.cssText = 'position:relative;border-radius:8px;overflow:hidden;background:#f5f5f5;box-shadow:0 2px 8px rgba(0,0,0,0.1);display:flex;flex-direction:column;';
 
             const img = document.createElement('img');
-            img.src = c.dataUrl;
+            img.loading = 'lazy';
+            images.add(img, c.id);
             img.style.cssText = 'width:100%;flex:1;min-height:0;object-fit:cover;display:block;cursor:pointer;transition:transform .15s;border-radius:8px 8px 0 0;';
+            img.style.minHeight = '100px';
+            img.addEventListener('load', () => { if(img.naturalWidth && img.naturalHeight){img.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;img.style.minHeight='0';} });
             img.addEventListener('mouseover', () => { img.style.transform = 'scale(1.03)'; });
             img.addEventListener('mouseout', () => { img.style.transform = ''; });
-            img.addEventListener('click', () => openCardViewer(c.dataUrl));
+            img.addEventListener('click', async () => { try { const card = await readCard(c); if(overlay.isConnected)openCardViewer(card.dataUrl); } catch(e) { toastr.error(e.message); } });
 
             const btnRow = document.createElement('div');
             btnRow.style.cssText = 'display:flex;gap:4px;padding:6px;background:rgba(0,0,0,0.6);flex-shrink:0;';
@@ -3866,16 +3874,17 @@ async function openGallery() {
             const btnEdit = document.createElement('button');
             btnEdit.textContent = '✏️ 수정';
             btnEdit.style.cssText = 'flex:1;padding:4px 0;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.18);color:#fff;';
-            btnEdit.addEventListener('click', () => {
-                overlay.remove();
-                startEditCard(c);
+            btnEdit.addEventListener('click', async () => {
+                try { const card = await readCard(c); if(!overlay.isConnected)return; overlay.remove(); startEditCard(card); }
+                catch(e) { toastr.error(e.message); }
             });
 
             const btnDl = document.createElement('button');
             btnDl.textContent = '💾 저장';
             btnDl.style.cssText = 'flex:1;padding:4px 0;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;background:#d4a017;color:#1c1a17;';
-            btnDl.addEventListener('click', () => {
-                downloadCardImage(c.dataUrl, 'narrative_card_' + (c.createdAt || Date.now()) + '.png');
+            btnDl.addEventListener('click', async () => {
+                try { const card = await readCard(c); downloadCardImage(card.dataUrl, 'narrative_card_' + (c.createdAt || Date.now()) + '.png'); }
+                catch(e) { toastr.error(e.message); }
             });
 
             const btnDel = document.createElement('button');
@@ -3883,6 +3892,7 @@ async function openGallery() {
             btnDel.style.cssText = 'flex:1;padding:4px 0;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;background:rgba(255,80,80,0.2);color:#ff8080;';
             btnDel.addEventListener('click', async () => {
                 await deleteCard(c.id);
+                images.remove(img);
                 item.remove();
                 // 전체 목록 및 캐릭터 드롭다운 카운트 갱신
                 const cardIdx = cards.findIndex(x => x.id === c.id);
